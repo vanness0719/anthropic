@@ -1,0 +1,7 @@
+services:
+  yms:
+    build: .
+    container_name: de-yms-yield-bin-pareto
+    ports:
+      - "5173:80" # 宿主机 5173 -> 容器内 nginx 80
+    restart: unless-stopped

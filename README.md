@@ -32,6 +32,19 @@ Box Plot / Bin Trend 选项卡内容、Overlay 真实数据叠加、真实后端
 
 ## 运行
 
+### 方式 A:Docker(推荐,无需本机装 Node)
+
+```bash
+docker compose up --build
+```
+
+构建完成后浏览器打开 **http://localhost:5173/** 即可。停止:`Ctrl + C`,或 `docker compose down`。
+
+> 原理:多阶段构建 —— 先用 `node:22-alpine` 执行 `npm ci && npm run build`,再用 `nginx:alpine`
+> 提供 `dist/` 静态文件;容器内 80 端口映射到宿主机 5173。
+
+### 方式 B:本机 Node(开发,带热更新)
+
 ```bash
 npm install
 npm run dev      # 开发服务器 http://localhost:5173
