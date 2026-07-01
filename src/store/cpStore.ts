@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BinType, MapMode, Product, SmartSplit } from '../types/cp';
+import type { BinType, Product, SmartSplit } from '../types/cp';
 import { generateMockData } from '../mock/generateMockData';
 import { realCp1 } from '../data/realCp1';
 import { mergeProducts } from '../utils/stdfParser';
@@ -20,7 +20,6 @@ interface CpState {
   uploadedProduct: Product | null; // 用户上传的 STDF 解析结果
   binType: BinType;
   smartSplit: SmartSplit;
-  mapMode: MapMode;
   selectedWaferIds: string[]; // 趋势图刷选(用于 Selected 对比图,最多 2 片)
   highlightedBin: number | null; // 表/帕累托 ↔ wafermap 联动高亮
   inspectedWaferId: string | null; // 单片检视:选中查看某一片 wafer 的 map + bin
@@ -30,7 +29,6 @@ interface CpState {
   clearUploaded: () => void;
   setBinType: (t: BinType) => void;
   setSmartSplit: (s: SmartSplit) => void;
-  setMapMode: (m: MapMode) => void;
   setSelectedWafers: (ids: string[]) => void;
   setHighlightedBin: (bin: number | null) => void;
   setInspectedWafer: (id: string | null) => void;
@@ -42,7 +40,6 @@ export const useCpStore = create<CpState>((set, get) => ({
   uploadedProduct: null,
   binType: 'HBin',
   smartSplit: 'Day',
-  mapMode: 'stacked',
   selectedWaferIds: [],
   highlightedBin: null,
   inspectedWaferId: null,
@@ -66,7 +63,6 @@ export const useCpStore = create<CpState>((set, get) => ({
   },
   setBinType: (binType) => set({ binType }),
   setSmartSplit: (smartSplit) => set({ smartSplit }),
-  setMapMode: (mapMode) => set({ mapMode }),
   // 仅保留最近选择的 2 片,贴合手册 "Select 2pcs wafers for yield comparison"
   setSelectedWafers: (ids) => set({ selectedWaferIds: ids.slice(-2) }),
   setHighlightedBin: (highlightedBin) => set({ highlightedBin }),
