@@ -55,7 +55,6 @@ export default function WafermapPanel() {
           <div style={{ fontSize: 12, marginBottom: 4 }}>Baseline ({baselineWafers.length} wafers)</div>
           <WaferMap
             wafers={baselineWafers}
-            gridSize={product.gridSize}
             bins={product.hbins}
             highlightedBin={highlightedBin}
             colorBy={colorBy}
@@ -68,7 +67,6 @@ export default function WafermapPanel() {
           </div>
           <WaferMap
             wafers={selectedWafers}
-            gridSize={product.gridSize}
             bins={product.hbins}
             highlightedBin={highlightedBin}
             colorBy={colorBy}

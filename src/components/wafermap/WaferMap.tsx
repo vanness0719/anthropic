@@ -4,7 +4,6 @@ import { passBinSet, stackWafermap } from '../../utils/yieldCalc';
 
 interface Props {
   wafers: Wafer[];
-  gridSize: number;
   bins: Bin[];
   highlightedBin: number | null;
   /** 上色方式:yield = 绿→红良率渐变;bin = 按 topBin 颜色 */
@@ -22,7 +21,6 @@ function yieldColor(pct: number): string {
 /** 自研 Canvas 晶圆图:绘制 die 网格,圆形裁剪,支持 stacked 叠加与 bin 高亮 */
 export default function WaferMap({
   wafers,
-  gridSize,
   bins,
   highlightedBin,
   colorBy,
@@ -56,7 +54,27 @@ export default function WaferMap({
       return;
     }
 
-    const cell = size / gridSize;
+    // 由实际 die 坐标推导网格范围(真实晶圆多为矩形排布,如 103×120,而非正方形)
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const d of stacked) {
+      if (d.x < minX) minX = d.x;
+      if (d.x > maxX) maxX = d.x;
+      if (d.y < minY) minY = d.y;
+      if (d.y > maxY) maxY = d.y;
+    }
+    const cols = maxX - minX + 1;
+    const rows = maxY - minY + 1;
+    // 圆形晶圆:列/行都跨越同一直径 D。用非正方形 cell 让 die 保持真实纵横比,
+    // 且整个 die 区域恰好内接于晶圆圆内。
+    const margin = 2;
+    const D = size - 2 * margin;
+    const cellW = D / cols;
+    const cellH = D / rows;
+    const gap = Math.min(0.5, Math.min(cellW, cellH) * 0.12);
+
     for (const d of stacked) {
       let fill: string;
       if (colorBy === 'yield') {
@@ -77,17 +95,22 @@ export default function WaferMap({
       }
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
-      ctx.fillRect(d.x * cell, d.y * cell, cell - 0.5, cell - 0.5);
+      ctx.fillRect(
+        margin + (d.x - minX) * cellW,
+        margin + (d.y - minY) * cellH,
+        Math.max(cellW - gap, 0.5),
+        Math.max(cellH - gap, 0.5)
+      );
     }
     ctx.globalAlpha = 1;
 
-    // 晶圆外轮廓圆
+    // 晶圆外轮廓圆:以 die 区域中心为圆心,直径 = D(die 区域内接圆)
     ctx.strokeStyle = '#8c8c8c';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+    ctx.arc(size / 2, size / 2, D / 2, 0, Math.PI * 2);
     ctx.stroke();
-  }, [stacked, gridSize, binColor, highlightedBin, colorBy, size]);
+  }, [stacked, binColor, highlightedBin, colorBy, size]);
 
   return (
     <canvas
