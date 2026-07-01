@@ -1,0 +1,103 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #f0f2f5;
+  color: #1f1f1f;
+}
+
+.deyms-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.deyms-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.deyms-side {
+  width: 168px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.deyms-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+}
+
+.panel-title {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.side-group {
+  padding: 6px 14px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1677ff;
+}
+.side-item {
+  padding: 4px 22px;
+  font-size: 12px;
+  color: #595959;
+  cursor: pointer;
+}
+.side-item:hover {
+  background: #f5f5f5;
+}
+.side-item.active {
+  color: #1677ff;
+  font-weight: 600;
+  background: #e6f4ff;
+  border-left: 2px solid #1677ff;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+  min-width: 196px;
+}
+.context-menu-item {
+  padding: 5px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.context-menu-item:hover {
+  background: #f5f5f5;
+}
+.context-menu-sep {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 4px 0;
+}

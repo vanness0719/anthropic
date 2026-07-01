@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+portable/preview.png
+portable/preview-upload.png
+portable/preview-multi.png
+portable/preview-inspect.png
+portable/preview-param.png
+portable/preview-cp3.png
+portable/preview-logo.png
