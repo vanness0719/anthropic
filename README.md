@@ -82,6 +82,13 @@ docker compose up --build
 点选任意一片或用「上/下一片」翻页,中间显示**该片单独的晶圆图**(可切 Bin/Yield 上色),
 右侧显示**该片自己的 Bin 明细表**(HBin/SBin,点击行高亮左图对应 bin)。
 
+**参数测试分析(SP/WS Analysis → By Parameter)**:左侧菜单点 **By Parameter** 进入。
+上传含参数测试(PTR)的 STDF 后,可查看每个测试项的**实测数据分布与统计**:
+测试项列表(名称/编号/单位/上下限,可搜索);选中后显示 N、Mean、Std、Min/Max、Median、
+LO/HI、**Cp/Cpk**、超限点数/占比,以及带 LO/HI/μ 参考线的**分布直方图**;可按"全部 wafer"
+或单片过滤,并列出**片间均值对比**。解析在浏览器内完成(185MB 文件、约 120 万实测点 ~0.12s)。
+统计工具见 `src/utils/paramStats.ts`。
+
 重新生成(改动源码后):
 
 ```bash

@@ -31,6 +31,22 @@ export interface Wafer {
   sbinCounts: Record<number, number>; // SBin# -> 数量
 }
 
+/** 参数测试项(来自 STDF PTR 记录)*/
+export interface TestItem {
+  num: number; // TEST_NUM
+  name: string; // TEST_TXT
+  units: string; // UNITS
+  lo: number | null; // LO_LIMIT
+  hi: number | null; // HI_LIMIT
+}
+
+/** 参数测试数据:测试项列表 + 每个测试项每片 wafer 的实测值 */
+export interface ParamData {
+  items: TestItem[];
+  // testNum -> waferId -> 实测值数组
+  values: Map<number, Map<string, number[]>>;
+}
+
 /** 单个产品(本页 = CP1) */
 export interface Product {
   productId: string; // "CP1"
@@ -40,6 +56,7 @@ export interface Product {
   wafers: Wafer[];
   baselineWaferIds: string[]; // 基线晶圆集合(用于对比)
   gridSize: number; // 晶圆 die 网格边长(正方形栅格)
+  paramData?: ParamData; // 参数测试实测数据(仅上传/解析含 PTR 的 STDF 时存在)
 }
 
 export type BinType = 'HBin' | 'SBin' | 'SBinGroup';

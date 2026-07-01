@@ -1,7 +1,7 @@
 // 浏览器内 STDF 解析器:把 .stdf / .stdf.gz 解析为本工具的 Product 数据模型。
 // 纯前端、无依赖:gzip 用浏览器原生 DecompressionStream 解压。
 // 逻辑与离线 Python 版一致(已用真实文件核对:wafer PC8C32-01B7 -> yield 99.24%)。
-import type { Bin, BinKind, Die, Product, Wafer } from '../types/cp';
+import type { Bin, BinKind, Die, ParamData, Product, TestItem, Wafer } from '../types/cp';
 
 const FAIL_COLORS = [
   '#1f77b4', '#ff7f0e', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
@@ -34,6 +34,7 @@ interface WipWafer {
   waferId: string;
   dateT: number; // unix 秒
   final: Map<string, [number, number]>; // "x,y" -> [hard, soft],保留重测最终结果
+  params: Map<number, number[]>; // testNum -> 该片所有 die 的实测值
 }
 
 /** 若为 gzip(魔数 1f 8b)则用原生 DecompressionStream 解压 */
@@ -60,6 +61,7 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
   const u2 = (o: number) => dv.getUint16(o, LE);
   const u4 = (o: number) => dv.getUint32(o, LE);
   const i2 = (o: number) => dv.getInt16(o, LE);
+  const f4 = (o: number) => dv.getFloat32(o, LE);
   // 长度前缀字符串 Cn(latin1)
   const cn = (o: number): [string, number] => {
     if (o >= n) return ['', o];
@@ -76,10 +78,12 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
   let cur: WipWafer | null = null;
   const hName = new Map<number, { name: string; pf: string }>();
   const sName = new Map<number, { name: string; pf: string }>();
+  // 参数测试项元数据(名称/单位/上下限,首次出现时捕获);Map 有序,保留出现顺序
+  const testMeta = new Map<number, { name: string; units: string; lo: number | null; hi: number | null }>();
 
   const ensureWafer = (): WipWafer => {
     if (!cur) {
-      cur = { waferId: '', dateT: mirStart, final: new Map() };
+      cur = { waferId: '', dateT: mirStart, final: new Map(), params: new Map() };
       wafers.push(cur);
     }
     return cur;
@@ -104,7 +108,7 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
       // WIR: head U1, sitegrp U1, start U4, wafer_id Cn
       const startT = u4(b + 2);
       const [wid] = cn(b + 6);
-      cur = { waferId: wid, dateT: startT || mirStart, final: new Map() };
+      cur = { waferId: wid, dateT: startT || mirStart, final: new Map(), params: new Map() };
       wafers.push(cur);
     } else if (typ === 2 && sub === 20) {
       // WRR: head U1, sitegrp U1, finish U4, part/rtst/abrt/good/func U4x5, wafer_id Cn
@@ -138,6 +142,42 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
       if (name) e.name = name;
       if (pf === 'P' || pf === 'F') e.pf = pf;
       sName.set(num, e);
+    } else if (typ === 15 && sub === 10) {
+      // PTR 参数测试: TEST_NUM U4, HEAD U1, SITE U1, TEST_FLG B1, PARM_FLG B1, RESULT R4,
+      //   TEST_TXT Cn, ALARM_ID Cn, OPT_FLAG B1, RES/LLM/HLM_SCAL I1x3, LO_LIMIT R4, HI_LIMIT R4, UNITS Cn ...
+      const testNum = u4(b);
+      const result = f4(b + 8);
+      const w = ensureWafer();
+      let arr = w.params.get(testNum);
+      if (!arr) {
+        arr = [];
+        w.params.set(testNum, arr);
+      }
+      arr.push(result);
+      // 仅在首次遇到该测试项时解析名称/单位/上下限(后续记录多为精简版,省这些字段)
+      if (!testMeta.has(testNum)) {
+        let p = b + 12;
+        const [testTxt, p2] = cn(p); // TEST_TXT
+        p = p2;
+        const [, p3] = cn(p); // ALARM_ID
+        p = p3;
+        let lo: number | null = null;
+        let hi: number | null = null;
+        let units = '';
+        // OPT_FLAG(1) + 3×SCAL(1) 之后才是 LO/HI_LIMIT;需记录体足够长
+        if (p + 1 + 3 + 8 <= next) {
+          const optFlag = bytes[p];
+          p += 1 + 3; // 跳过 OPT_FLAG 与 RES/LLM/HLM_SCAL
+          const loRaw = f4(p);
+          const hiRaw = f4(p + 4);
+          p += 8;
+          // OPT_FLAG bit4=LO 无效, bit5=HI 无效, bit6=LO 缺省, bit7=HI 缺省
+          if (!(optFlag & 0x40) && !(optFlag & 0x10)) lo = loRaw;
+          if (!(optFlag & 0x80) && !(optFlag & 0x20)) hi = hiRaw;
+          [units] = cn(p); // UNITS
+        }
+        testMeta.set(testNum, { name: testTxt, units, lo, hi });
+      }
     }
     o = next;
   }
@@ -149,8 +189,8 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
   const sTotal = new Map<number, number>();
   let maxCoord = 0;
 
-  const outWafers: Wafer[] = wafers
-    .filter((w) => w.final.size > 0)
+  const filteredWip = wafers.filter((w) => w.final.size > 0);
+  const outWafers: Wafer[] = filteredWip
     .map((w, idx) => {
       const tested = new Set(w.final.keys());
       const isEdge = (x: number, y: number) =>
@@ -189,6 +229,28 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
   const toTypeMeta = (names: Map<number, { name: string; pf: string }>) =>
     new Map([...names].map(([k, v]) => [k, { name: v.name, type: (v.pf === 'P' ? 'pass' : 'fail') as BinKind }]));
 
+  // 参数测试数据:测试项列表(按出现顺序)+ testNum -> waferId -> 实测值
+  let paramData: ParamData | undefined;
+  if (testMeta.size) {
+    const items: TestItem[] = [...testMeta].map(([num, m]) => ({
+      num, name: m.name || `TEST ${num}`, units: m.units, lo: m.lo, hi: m.hi,
+    }));
+    const values = new Map<number, Map<string, number[]>>();
+    for (const num of testMeta.keys()) values.set(num, new Map());
+    filteredWip.forEach((w, idx) => {
+      const wid = outWafers[idx].waferId;
+      for (const [num, arr] of w.params) {
+        let m = values.get(num);
+        if (!m) {
+          m = new Map();
+          values.set(num, m);
+        }
+        m.set(wid, arr);
+      }
+    });
+    paramData = { items, values };
+  }
+
   const dates = outWafers.map((w) => w.date).sort();
   return {
     productId: mirPart || 'CP',
@@ -198,6 +260,7 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
     wafers: outWafers,
     baselineWaferIds: outWafers.map((w) => w.waferId),
     gridSize: maxCoord + 1,
+    paramData,
   };
 }
 
@@ -205,7 +268,10 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
 export function mergeProducts(products: Product[]): Product {
   const wafers: Wafer[] = [];
   const seen = new Set<string>();
+  const idMaps = new Map<Product, Map<string, string>>(); // 每个来源产品的 oldId->newId(用于同步 paramData)
   for (const p of products) {
+    const m = new Map<string, string>();
+    idMaps.set(p, m);
     for (const w of p.wafers) {
       let id = w.waferId;
       if (seen.has(id)) {
@@ -214,6 +280,7 @@ export function mergeProducts(products: Product[]): Product {
         id = `${id}#${k}`;
       }
       seen.add(id);
+      m.set(w.waferId, id);
       wafers.push(id === w.waferId ? w : { ...w, waferId: id });
     }
   }
@@ -237,6 +304,35 @@ export function mergeProducts(products: Product[]): Product {
     }
   }
 
+  // 合并参数测试数据:union 测试项,按重映射后的 waferId 汇集实测值
+  let paramData: ParamData | undefined;
+  const withParam = products.filter((p) => p.paramData);
+  if (withParam.length) {
+    const items: TestItem[] = [];
+    const seenTest = new Set<number>();
+    for (const p of withParam) {
+      for (const it of p.paramData!.items) {
+        if (!seenTest.has(it.num)) {
+          seenTest.add(it.num);
+          items.push(it);
+        }
+      }
+    }
+    const values = new Map<number, Map<string, number[]>>();
+    for (const p of withParam) {
+      const m = idMaps.get(p)!;
+      for (const [num, byWafer] of p.paramData!.values) {
+        let dst = values.get(num);
+        if (!dst) {
+          dst = new Map();
+          values.set(num, dst);
+        }
+        for (const [oldId, arr] of byWafer) dst.set(m.get(oldId) ?? oldId, arr);
+      }
+    }
+    paramData = { items, values };
+  }
+
   const dates = wafers.map((w) => w.date).sort();
   const pids = [...new Set(products.map((p) => p.productId))];
   return {
@@ -247,6 +343,7 @@ export function mergeProducts(products: Product[]): Product {
     wafers,
     baselineWaferIds: wafers.map((w) => w.waferId),
     gridSize: grid + 1,
+    paramData,
   };
 }
 

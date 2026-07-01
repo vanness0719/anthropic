@@ -5,6 +5,7 @@ import { realCp1 } from '../data/realCp1';
 import { mergeProducts } from '../utils/stdfParser';
 
 export type DataSource = 'mock' | 'real' | 'upload';
+export type ActiveView = 'yield' | 'byParameter';
 
 const mockProduct = generateMockData();
 
@@ -15,6 +16,7 @@ const initialSource: DataSource =
     : 'mock';
 
 interface CpState {
+  activeView: ActiveView; // 左侧菜单当前视图
   dataSource: DataSource; // mock 演示数据 / 内置真实 STDF / 用户上传解析
   product: Product;
   uploadedProduct: Product | null; // 用户上传的 STDF 解析结果
@@ -24,6 +26,7 @@ interface CpState {
   highlightedBin: number | null; // 表/帕累托 ↔ wafermap 联动高亮
   inspectedWaferId: string | null; // 单片检视:选中查看某一片 wafer 的 map + bin
 
+  setActiveView: (v: ActiveView) => void;
   setDataSource: (s: DataSource) => void;
   addUploadedProducts: (products: Product[]) => void; // 上传解析成功后调用(累加合并多片)
   clearUploaded: () => void;
@@ -35,6 +38,7 @@ interface CpState {
 }
 
 export const useCpStore = create<CpState>((set, get) => ({
+  activeView: 'yield',
   dataSource: initialSource,
   product: initialSource === 'real' ? realCp1 : mockProduct,
   uploadedProduct: null,
@@ -44,6 +48,7 @@ export const useCpStore = create<CpState>((set, get) => ({
   highlightedBin: null,
   inspectedWaferId: null,
 
+  setActiveView: (activeView) => set({ activeView }),
   // 切换数据源时重置联动选择状态,避免残留旧 wafer id / bin
   setDataSource: (dataSource) => {
     const { uploadedProduct } = get();
