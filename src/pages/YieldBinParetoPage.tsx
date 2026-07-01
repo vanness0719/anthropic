@@ -3,6 +3,7 @@ import KpiBar from '../components/KpiBar';
 import YieldTrendPanel from '../components/trend/YieldTrendPanel';
 import BinParetoPanel from '../components/pareto/BinParetoPanel';
 import WafermapPanel from '../components/wafermap/WafermapPanel';
+import WaferInspectorPanel from '../components/wafermap/WaferInspectorPanel';
 
 /** CP Single Product · Yield/Bin Pareto 页面布局(三区联动) */
 export default function YieldBinParetoPage() {
@@ -24,8 +25,11 @@ export default function YieldBinParetoPage() {
         </div>
       </div>
 
-      {/* 下排:晶圆图 */}
+      {/* 下排:晶圆图(Baseline vs Selected 叠加) */}
       <WafermapPanel />
+
+      {/* 单片检视:选择任意一片查看其 map 与 bin 明细 */}
+      <WaferInspectorPanel />
     </div>
   );
 }

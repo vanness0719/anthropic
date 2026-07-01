@@ -23,6 +23,7 @@ interface CpState {
   mapMode: MapMode;
   selectedWaferIds: string[]; // 趋势图刷选(用于 Selected 对比图,最多 2 片)
   highlightedBin: number | null; // 表/帕累托 ↔ wafermap 联动高亮
+  inspectedWaferId: string | null; // 单片检视:选中查看某一片 wafer 的 map + bin
 
   setDataSource: (s: DataSource) => void;
   addUploadedProducts: (products: Product[]) => void; // 上传解析成功后调用(累加合并多片)
@@ -32,6 +33,7 @@ interface CpState {
   setMapMode: (m: MapMode) => void;
   setSelectedWafers: (ids: string[]) => void;
   setHighlightedBin: (bin: number | null) => void;
+  setInspectedWafer: (id: string | null) => void;
 }
 
 export const useCpStore = create<CpState>((set, get) => ({
@@ -43,23 +45,24 @@ export const useCpStore = create<CpState>((set, get) => ({
   mapMode: 'stacked',
   selectedWaferIds: [],
   highlightedBin: null,
+  inspectedWaferId: null,
 
   // 切换数据源时重置联动选择状态,避免残留旧 wafer id / bin
   setDataSource: (dataSource) => {
     const { uploadedProduct } = get();
     const product =
       dataSource === 'real' ? realCp1 : dataSource === 'upload' ? uploadedProduct ?? mockProduct : mockProduct;
-    set({ dataSource, product, selectedWaferIds: [], highlightedBin: null });
+    set({ dataSource, product, selectedWaferIds: [], highlightedBin: null, inspectedWaferId: null });
   },
   // 累加合并:新上传的文件与已有上传数据集一起,支持"分多次加载,同时看多片"
   addUploadedProducts: (products) => {
     const { uploadedProduct } = get();
     const merged = mergeProducts([...(uploadedProduct ? [uploadedProduct] : []), ...products]);
-    set({ uploadedProduct: merged, dataSource: 'upload', product: merged, selectedWaferIds: [], highlightedBin: null });
+    set({ uploadedProduct: merged, dataSource: 'upload', product: merged, selectedWaferIds: [], highlightedBin: null, inspectedWaferId: null });
   },
   clearUploaded: () => {
     const src: DataSource = 'mock';
-    set({ uploadedProduct: null, dataSource: src, product: mockProduct, selectedWaferIds: [], highlightedBin: null });
+    set({ uploadedProduct: null, dataSource: src, product: mockProduct, selectedWaferIds: [], highlightedBin: null, inspectedWaferId: null });
   },
   setBinType: (binType) => set({ binType }),
   setSmartSplit: (smartSplit) => set({ smartSplit }),
@@ -67,4 +70,5 @@ export const useCpStore = create<CpState>((set, get) => ({
   // 仅保留最近选择的 2 片,贴合手册 "Select 2pcs wafers for yield comparison"
   setSelectedWafers: (ids) => set({ selectedWaferIds: ids.slice(-2) }),
   setHighlightedBin: (highlightedBin) => set({ highlightedBin }),
+  setInspectedWafer: (inspectedWaferId) => set({ inspectedWaferId }),
 }));
