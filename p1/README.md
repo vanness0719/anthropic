@@ -72,6 +72,19 @@ npm run dev                   # 打开 http://localhost:5174
 
 开发时 `/api` 已通过 Vite 代理到后端 `:8000`,无需额外配置跨域。
 
+## 打包成免安装可执行程序
+
+想把整套东西做成**双击即用、无需安装**的单文件程序,发给别人直接用:见
+[`packaging/README.md`](packaging/README.md)。原理是前端静态化后由后端同源托管,
+再用 PyInstaller 打成单个可执行文件(内置 Python 与所有依赖)。
+
+```bash
+cd p1/packaging
+./build.sh          # Windows 用 build.ps1,产物在 dist/ 下双击运行
+```
+
+跨三平台一次性构建可用仓库根的 GitHub Actions(`Package p1 desktop app`,手动触发)。
+
 ## 工作流
 
 ```

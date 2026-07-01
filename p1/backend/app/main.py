@@ -9,12 +9,14 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import uuid
 
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .pdf_translator import translate_pdf
 from .translators import PROVIDERS, build_translator, default_model
@@ -146,3 +148,25 @@ def download(job_id: str):
         media_type="application/pdf",
         filename=job["download_name"],
     )
+
+
+def _frontend_dir() -> str | None:
+    """定位打包好的前端静态文件目录(开发态或 PyInstaller 冻结态均可)。"""
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = []
+    bundle = getattr(sys, "_MEIPASS", None)  # PyInstaller 解包目录
+    if bundle:
+        candidates.append(os.path.join(bundle, "frontend_dist"))
+    candidates.append(os.path.join(here, "..", "frontend_dist"))          # 打包前置副本
+    candidates.append(os.path.join(here, "..", "..", "frontend", "dist"))  # 本地开发构建产物
+    for c in candidates:
+        if c and os.path.isdir(c):
+            return c
+    return None
+
+
+# 若存在前端构建产物,则由后端直接托管(单进程、同源),供打包成单文件程序使用。
+# 必须在所有 /api 路由声明之后挂载,'/' 为兜底,不会遮蔽先注册的 API 路由。
+_FRONTEND = _frontend_dir()
+if _FRONTEND:
+    app.mount("/", StaticFiles(directory=_FRONTEND, html=True), name="frontend")
