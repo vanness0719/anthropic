@@ -67,7 +67,12 @@ docker compose up --build
 无需 Node / Docker / 联网。仓库内已提供打包好的单文件:
 
 **`portable/de-yms-yield-bin-pareto.html`** —— 下载后**双击用浏览器打开**即可,
-默认直接展示真实 STDF 数据(wafer `PC8C32-01B7`,yield 99.24%),顶栏可切回 Mock。
+默认展示内置真实 STDF 数据(wafer `PC8C32-01B7`,yield 99.24%),顶栏可切回 Mock。
+
+**打开自己的 STDF 文件**:点顶栏 **「打开 STDF 文件」** 按钮,选择 `.stdf` 或 `.stdf.gz`
+——纯前端解析(gzip 用浏览器原生 `DecompressionStream`),无需联网、不上传服务器。
+解析器见 `src/utils/stdfParser.ts`(读取 MIR/WIR/WRR/PRR/HBR/SBR,支持多片晶圆,
+185MB 解压后约 0.1s 解析完)。
 
 重新生成(改动源码后):
 

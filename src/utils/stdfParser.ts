@@ -1,0 +1,206 @@
+// 浏览器内 STDF 解析器:把 .stdf / .stdf.gz 解析为本工具的 Product 数据模型。
+// 纯前端、无依赖:gzip 用浏览器原生 DecompressionStream 解压。
+// 逻辑与离线 Python 版一致(已用真实文件核对:wafer PC8C32-01B7 -> yield 99.24%)。
+import type { Bin, BinKind, Die, Product, Wafer } from '../types/cp';
+
+const FAIL_COLORS = [
+  '#1f77b4', '#ff7f0e', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+  '#17becf', '#bcbd22', '#2ca02c', '#ff9896', '#c5b0d5', '#c49c94', '#f7b6d2',
+];
+const PASS_COLOR = '#73d13d';
+const INVALID_COORD = -32768;
+
+interface WipWafer {
+  waferId: string;
+  dateT: number; // unix 秒
+  final: Map<string, [number, number]>; // "x,y" -> [hard, soft],保留重测最终结果
+}
+
+/** 若为 gzip(魔数 1f 8b)则用原生 DecompressionStream 解压 */
+async function gunzipIfNeeded(buf: ArrayBuffer): Promise<ArrayBuffer> {
+  const head = new Uint8Array(buf, 0, 2);
+  if (head[0] === 0x1f && head[1] === 0x8b) {
+    const ds = new DecompressionStream('gzip');
+    const stream = new Blob([buf]).stream().pipeThrough(ds);
+    return await new Response(stream).arrayBuffer();
+  }
+  return buf;
+}
+
+/** 解析已解压的 STDF 字节流 → Product(可含多片晶圆) */
+export function parseStdfRecords(buf: ArrayBuffer): Product {
+  const dv = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+  const n = buf.byteLength;
+  if (n < 6) throw new Error('文件过小,不是有效的 STDF');
+
+  // 字节序:FAR(0,10) 的 CPU_TYPE 位于首记录头(4字节)之后。2 = little-endian。
+  const cpu = bytes[4];
+  const LE = cpu !== 1; // 1=big-endian(sun),其余按 little
+  const u2 = (o: number) => dv.getUint16(o, LE);
+  const u4 = (o: number) => dv.getUint32(o, LE);
+  const i2 = (o: number) => dv.getInt16(o, LE);
+  // 长度前缀字符串 Cn(latin1)
+  const cn = (o: number): [string, number] => {
+    if (o >= n) return ['', o];
+    const len = bytes[o];
+    let s = '';
+    for (let i = 0; i < len && o + 1 + i < n; i++) s += String.fromCharCode(bytes[o + 1 + i]);
+    return [s, o + 1 + len];
+  };
+
+  let mirLot = '';
+  let mirPart = '';
+  let mirStart = 0;
+  const wafers: WipWafer[] = [];
+  let cur: WipWafer | null = null;
+  const hName = new Map<number, { name: string; pf: string }>();
+  const sName = new Map<number, { name: string; pf: string }>();
+
+  const ensureWafer = (): WipWafer => {
+    if (!cur) {
+      cur = { waferId: '', dateT: mirStart, final: new Map() };
+      wafers.push(cur);
+    }
+    return cur;
+  };
+
+  let o = 0;
+  while (o + 4 <= n) {
+    const rlen = u2(o);
+    const typ = bytes[o + 2];
+    const sub = bytes[o + 3];
+    const b = o + 4; // body 起始
+    const next = b + rlen;
+    if (next > n) break;
+
+    if (typ === 1 && sub === 10) {
+      // MIR: setup U4, start U4, STAT_NUM U1, MODE/RTST/PROT C1x3, BURN U2, CMOD C1, LOT_ID Cn, PART_TYP Cn
+      mirStart = u4(b + 4);
+      let p = b + 8 + 1 + 3 + 2 + 1;
+      [mirLot, p] = cn(p);
+      [mirPart, p] = cn(p);
+    } else if (typ === 2 && sub === 10) {
+      // WIR: head U1, sitegrp U1, start U4, wafer_id Cn
+      const startT = u4(b + 2);
+      const [wid] = cn(b + 6);
+      cur = { waferId: wid, dateT: startT || mirStart, final: new Map() };
+      wafers.push(cur);
+    } else if (typ === 2 && sub === 20) {
+      // WRR: head U1, sitegrp U1, finish U4, part/rtst/abrt/good/func U4x5, wafer_id Cn
+      const [wid] = cn(b + 26);
+      if (cur && wid) cur.waferId = wid;
+      cur = null;
+    } else if (typ === 5 && sub === 20) {
+      // PRR: head U1, site U1, part_flg B1, num_test U2, hard U2, soft U2, x I2, y I2
+      const hard = u2(b + 5);
+      const soft = u2(b + 7);
+      const x = i2(b + 9);
+      const y = i2(b + 11);
+      if (x !== INVALID_COORD && y !== INVALID_COORD) {
+        ensureWafer().final.set(`${x},${y}`, [hard, soft]);
+      }
+    } else if (typ === 1 && sub === 40) {
+      // HBR: head U1, site U1, hbin U2, cnt U4, pf C1, name Cn
+      const num = u2(b + 2);
+      const pf = String.fromCharCode(bytes[b + 8]);
+      const [name] = cn(b + 9);
+      const e = hName.get(num) ?? { name: '', pf: '' };
+      if (name) e.name = name;
+      if (pf === 'P' || pf === 'F') e.pf = pf;
+      hName.set(num, e);
+    } else if (typ === 1 && sub === 50) {
+      // SBR:结构同 HBR
+      const num = u2(b + 2);
+      const pf = String.fromCharCode(bytes[b + 8]);
+      const [name] = cn(b + 9);
+      const e = sName.get(num) ?? { name: '', pf: '' };
+      if (name) e.name = name;
+      if (pf === 'P' || pf === 'F') e.pf = pf;
+      sName.set(num, e);
+    }
+    o = next;
+  }
+
+  if (!wafers.length) throw new Error('未找到任何 die 结果(PRR),可能不是 CP wafer STDF');
+
+  const passH = new Set([...hName].filter(([, v]) => v.pf === 'P').map(([k]) => k));
+  const hTotal = new Map<number, number>();
+  const sTotal = new Map<number, number>();
+  let maxCoord = 0;
+
+  const outWafers: Wafer[] = wafers
+    .filter((w) => w.final.size > 0)
+    .map((w, idx) => {
+      const tested = new Set(w.final.keys());
+      const isEdge = (x: number, y: number) =>
+        !tested.has(`${x + 1},${y}`) || !tested.has(`${x - 1},${y}`) ||
+        !tested.has(`${x},${y + 1}`) || !tested.has(`${x},${y - 1}`);
+
+      const dies: Die[] = [];
+      const hbinCounts: Record<number, number> = {};
+      const sbinCounts: Record<number, number> = {};
+      let pass = 0;
+      for (const [key, [hard, soft]] of w.final) {
+        const [x, y] = key.split(',').map(Number);
+        if (x > maxCoord) maxCoord = x;
+        if (y > maxCoord) maxCoord = y;
+        dies.push({ x, y, bin: hard, edge: isEdge(x, y) });
+        hbinCounts[hard] = (hbinCounts[hard] ?? 0) + 1;
+        sbinCounts[soft] = (sbinCounts[soft] ?? 0) + 1;
+        hTotal.set(hard, (hTotal.get(hard) ?? 0) + 1);
+        sTotal.set(soft, (sTotal.get(soft) ?? 0) + 1);
+        if (passH.has(hard)) pass++;
+      }
+      const total = dies.length;
+      const date = new Date(w.dateT * 1000).toISOString().slice(0, 10);
+      return {
+        waferId: w.waferId || `${mirLot || 'LOT'}-W${String(idx + 1).padStart(2, '0')}`,
+        lotId: mirLot || 'LOT',
+        waferNo: idx + 1,
+        date,
+        yield: total ? +((pass / total) * 100).toFixed(2) : 0,
+        dies,
+        hbinCounts,
+        sbinCounts,
+      } as Wafer;
+    });
+
+  const buildBins = (
+    totals: Map<number, number>,
+    names: Map<number, { name: string; pf: string }>
+  ): Bin[] => {
+    const rows: { bin: number; name: string; type: BinKind; cnt: number }[] = [];
+    for (const [bin, cnt] of totals) {
+      const meta = names.get(bin);
+      const type: BinKind = meta?.pf === 'P' ? 'pass' : 'fail';
+      rows.push({ bin, name: meta?.name || `BIN${bin}`, type, cnt });
+    }
+    const passes = rows.filter((r) => r.type === 'pass').sort((a, b) => b.cnt - a.cnt);
+    const fails = rows.filter((r) => r.type === 'fail').sort((a, b) => b.cnt - a.cnt);
+    return [
+      ...passes.map((r) => ({ bin: r.bin, name: r.name, type: r.type, color: PASS_COLOR })),
+      ...fails.map((r, i) => ({
+        bin: r.bin, name: r.name, type: r.type, color: FAIL_COLORS[i % FAIL_COLORS.length],
+      })),
+    ];
+  };
+
+  const dates = outWafers.map((w) => w.date).sort();
+  return {
+    productId: mirPart || 'CP',
+    dateRange: [dates[0], dates[dates.length - 1]],
+    hbins: buildBins(hTotal, hName),
+    sbins: buildBins(sTotal, sName),
+    wafers: outWafers,
+    baselineWaferIds: outWafers.map((w) => w.waferId),
+    gridSize: maxCoord + 1,
+  };
+}
+
+/** 从用户选择的 File 解析(自动处理 .gz)。 */
+export async function parseStdfFile(file: File): Promise<Product> {
+  const buf = await file.arrayBuffer();
+  const raw = await gunzipIfNeeded(buf);
+  return parseStdfRecords(raw);
+}
