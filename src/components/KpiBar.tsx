@@ -5,6 +5,7 @@ import {
   avgYield,
   edgeYield,
   nonEdgeYield,
+  passBinSet,
   topFailBin,
   yoyDelta,
 } from '../utils/yieldCalc';
@@ -26,6 +27,7 @@ export default function KpiBar() {
 
   const m = useMemo(() => {
     const wafers = product.wafers;
+    const passBins = passBinSet(product.hbins);
     const pareto = aggregateBinPareto(product, wafers, binType);
     const top = topFailBin(pareto);
     const lots = new Set(wafers.map((w) => w.lotId)).size;
@@ -37,8 +39,8 @@ export default function KpiBar() {
       wafers: wafers.length,
       scrap,
       top,
-      edge: edgeYield(wafers),
-      nonEdge: nonEdgeYield(wafers),
+      edge: edgeYield(wafers, passBins),
+      nonEdge: nonEdgeYield(wafers, passBins),
     };
   }, [product, binType]);
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { Bin, Wafer } from '../../types/cp';
-import { stackWafermap } from '../../utils/yieldCalc';
+import { passBinSet, stackWafermap } from '../../utils/yieldCalc';
 
 interface Props {
   wafers: Wafer[];
@@ -30,7 +30,8 @@ export default function WaferMap({
   onContextMenu,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stacked = useMemo(() => stackWafermap(wafers), [wafers]);
+  const passBins = useMemo(() => passBinSet(bins), [bins]);
+  const stacked = useMemo(() => stackWafermap(wafers, passBins), [wafers, passBins]);
   const binColor = useMemo(() => new Map(bins.map((b) => [b.bin, b.color])), [bins]);
 
   useEffect(() => {

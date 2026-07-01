@@ -10,6 +10,11 @@ function counts(wafer: Wafer, binType: BinType): Record<number, number> {
   return binType === 'SBin' ? wafer.sbinCounts : wafer.hbinCounts;
 }
 
+/** 从 bin 定义推导 pass bin 集合。真实 STDF 的 pass bin 不一定是 0(本例为 HBIN 11)。 */
+export function passBinSet(bins: Bin[]): Set<number> {
+  return new Set(bins.filter((b) => b.type === 'pass').map((b) => b.bin));
+}
+
 /** 帕累托:按 bin% 降序,fail bin 在前。包含累计百分比。 */
 export function aggregateBinPareto(
   product: Product,
@@ -70,21 +75,23 @@ export function avgYield(wafers: Wafer[]): number {
   return +(wafers.reduce((s, w) => s + w.yield, 0) / wafers.length).toFixed(2);
 }
 
-function zoneYield(wafers: Wafer[], wantEdge: boolean): number {
+function zoneYield(wafers: Wafer[], wantEdge: boolean, passBins: Set<number>): number {
   let pass = 0;
   let total = 0;
   for (const w of wafers) {
     for (const d of w.dies) {
       if (d.edge !== wantEdge) continue;
       total++;
-      if (d.bin === 0) pass++;
+      if (passBins.has(d.bin)) pass++;
     }
   }
   return total ? +((pass / total) * 100).toFixed(2) : 0;
 }
 
-export const edgeYield = (wafers: Wafer[]) => zoneYield(wafers, true);
-export const nonEdgeYield = (wafers: Wafer[]) => zoneYield(wafers, false);
+export const edgeYield = (wafers: Wafer[], passBins: Set<number>) =>
+  zoneYield(wafers, true, passBins);
+export const nonEdgeYield = (wafers: Wafer[], passBins: Set<number>) =>
+  zoneYield(wafers, false, passBins);
 
 /** Avg.Yield 相对前半段晶圆的环比变化(百分点) */
 export function yoyDelta(wafers: Wafer[]): number {
@@ -108,8 +115,9 @@ export interface StackedDie {
   binTally: Record<number, number>;
 }
 
-/** 把一组晶圆按 die 坐标叠加,得到 stacked wafermap */
-export function stackWafermap(wafers: Wafer[]): StackedDie[] {
+/** 把一组晶圆按 die 坐标叠加,得到 stacked wafermap。passBins 为空时默认 bin 0 为 pass。 */
+export function stackWafermap(wafers: Wafer[], passBins?: Set<number>): StackedDie[] {
+  const pass = passBins ?? new Set([0]);
   const map = new Map<string, StackedDie>();
   for (const w of wafers) {
     for (const d of w.dies) {
@@ -124,8 +132,9 @@ export function stackWafermap(wafers: Wafer[]): StackedDie[] {
     }
   }
   for (const cell of map.values()) {
-    const pass = cell.binTally[0] ?? 0;
-    cell.passRate = cell.total ? +((pass / cell.total) * 100).toFixed(1) : 0;
+    let passCount = 0;
+    for (const b of pass) passCount += cell.binTally[b] ?? 0;
+    cell.passRate = cell.total ? +((passCount / cell.total) * 100).toFixed(1) : 0;
     let max = -1;
     for (const k of Object.keys(cell.binTally)) {
       const bin = Number(k);

@@ -15,6 +15,7 @@ Yield/Bin Pareto** 页面。这是良率工程师分析单产品 CP(Circuit Prob
 - **自研 `<WaferMap>` Canvas 组件** — 圆形裁剪的 die 网格热图,支持叠加(stacked)与 bin 高亮
 - **Zustand** — 跨组件联动状态(趋势选点 ↔ 帕累托 ↔ 晶圆图)
 - **内置 mock 数据生成器**(`src/mock/generateMockData.ts`)— 暂无真实晶圆数据时使用
+- **真实 STDF 数据集**(`src/data/realCp1.ts`)— 由实际芯片测试 STDF 文件离线解析生成,顶栏可切换
 
 ## 功能
 
@@ -26,9 +27,27 @@ Yield/Bin Pareto** 页面。这是良率工程师分析单产品 CP(Circuit Prob
 - Stacked wafermap(Baseline vs Selected),按 Yield 或 Bin 上色
 - 右键晶圆图弹出上下文菜单(Overlay/Export/Maximize 等;Overlay 类为占位)
 
+### 真实 STDF 数据验证
+
+已用一份**实际芯片测试 STDF 文件**(产品 `CCFC2011BC` / Lot `PC8C32.00` / Wafer `PC8C32-01B7`,
+2025-04-07 CP1,9747 颗 die)验证本工具:
+
+- 顶栏 **Mock / 真实STDF** 开关切换到真实数据集(`src/data/realCp1.ts`)。
+- 运行验证脚本,用工具**自身的聚合函数**核对结果与 STDF 内 WRR 汇总是否一致:
+
+  ```bash
+  npx tsx src/data/verifyRealCp1.ts
+  ```
+
+  全部 15 项通过:总数 9747、pass 9673、**yield 99.24%**、Top Fail Bin `flash_fun_fail`(27)、
+  Edge 95.25% / Non-Edge 99.37%、帕累托累计收敛到 100%。
+
+> 验证中发现并修复:此前"pass"被硬编码为 `bin === 0`,而真实 STDF 的 pass 是 **HBIN 11**;
+> 现改为从 bin 定义(`type === 'pass'`)推导,`src/utils/yieldCalc.ts` 的良率/Edge/wafermap 计算不再依赖特定 bin 号。
+
 ### 待实现(占位)
 
-Box Plot / Bin Trend 选项卡内容、Overlay 真实数据叠加、真实后端接入、其余 CP 子模块。
+Box Plot / Bin Trend 选项卡内容、Overlay 真实数据叠加、浏览器内直接上传 STDF、真实后端接入、其余 CP 子模块。
 
 ## 运行
 

@@ -1,8 +1,15 @@
 import { create } from 'zustand';
 import type { BinType, MapMode, Product, SmartSplit } from '../types/cp';
 import { generateMockData } from '../mock/generateMockData';
+import { realCp1 } from '../data/realCp1';
+
+export type DataSource = 'mock' | 'real';
+
+const mockProduct = generateMockData();
+const productFor = (src: DataSource): Product => (src === 'real' ? realCp1 : mockProduct);
 
 interface CpState {
+  dataSource: DataSource; // mock 演示数据 vs 真实 STDF 解析数据
   product: Product;
   binType: BinType;
   smartSplit: SmartSplit;
@@ -10,6 +17,7 @@ interface CpState {
   selectedWaferIds: string[]; // 趋势图刷选(用于 Selected 对比图,最多 2 片)
   highlightedBin: number | null; // 表/帕累托 ↔ wafermap 联动高亮
 
+  setDataSource: (s: DataSource) => void;
   setBinType: (t: BinType) => void;
   setSmartSplit: (s: SmartSplit) => void;
   setMapMode: (m: MapMode) => void;
@@ -18,13 +26,17 @@ interface CpState {
 }
 
 export const useCpStore = create<CpState>((set) => ({
-  product: generateMockData(),
+  dataSource: 'mock',
+  product: mockProduct,
   binType: 'HBin',
   smartSplit: 'Day',
   mapMode: 'stacked',
   selectedWaferIds: [],
   highlightedBin: null,
 
+  // 切换数据源时重置联动选择状态,避免残留旧 wafer id / bin
+  setDataSource: (dataSource) =>
+    set({ dataSource, product: productFor(dataSource), selectedWaferIds: [], highlightedBin: null }),
   setBinType: (binType) => set({ binType }),
   setSmartSplit: (smartSplit) => set({ smartSplit }),
   setMapMode: (mapMode) => set({ mapMode }),

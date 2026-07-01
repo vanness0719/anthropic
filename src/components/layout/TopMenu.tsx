@@ -1,9 +1,12 @@
-import { Space } from 'antd';
+import { Segmented, Space } from 'antd';
+import { useCpStore } from '../../store/cpStore';
 
 const MENUS = ['Summary', 'CP', 'FT', 'WAT', 'Metrology', 'Defect', 'MORE'];
 
 /** 顶部主菜单条,复刻 DE-YMS 顶栏样式 */
 export default function TopMenu() {
+  const dataSource = useCpStore((s) => s.dataSource);
+  const setDataSource = useCpStore((s) => s.setDataSource);
   return (
     <div
       style={{
@@ -35,7 +38,16 @@ export default function TopMenu() {
         ))}
       </Space>
       <div style={{ flex: 1 }} />
-      <Space size={16} style={{ color: '#8c8c8c', fontSize: 13 }}>
+      <Segmented
+        size="small"
+        value={dataSource}
+        onChange={(v) => setDataSource(v as 'mock' | 'real')}
+        options={[
+          { label: 'Mock', value: 'mock' },
+          { label: '真实STDF', value: 'real' },
+        ]}
+      />
+      <Space size={16} style={{ color: '#8c8c8c', fontSize: 13, marginLeft: 16 }}>
         <span>DE-G</span>
         <span>⚙ Config</span>
         <span>👤 user</span>
