@@ -90,10 +90,9 @@ class Translator(ABC):
             "each element the translation of the corresponding input string.\n\n"
             f"{payload}"
         )
-        try:
-            raw = self._complete(system, user)
-        except Exception:
-            return None
+        # 供应商 / 网络错误(鉴权失败、超时等)直接抛出,由上层置任务为 error;
+        # 这里只对「输出无法解析成等长数组」返回 None,交由逐段回退处理。
+        raw = self._complete(system, user)
         arr = _extract_json_array(raw)
         if arr is None:
             return None
