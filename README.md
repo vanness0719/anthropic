@@ -62,6 +62,22 @@ docker compose up --build
 > 原理:多阶段构建 —— 先用 `node:22-alpine` 执行 `npm ci && npm run build`,再用 `nginx:alpine`
 > 提供 `dist/` 静态文件;容器内 80 端口映射到宿主机 5173。
 
+### 方式 C:便携版单文件(免安装,双击即用)⭐
+
+无需 Node / Docker / 联网。仓库内已提供打包好的单文件:
+
+**`portable/de-yms-yield-bin-pareto.html`** —— 下载后**双击用浏览器打开**即可,
+默认直接展示真实 STDF 数据(wafer `PC8C32-01B7`,yield 99.24%),顶栏可切回 Mock。
+
+重新生成(改动源码后):
+
+```bash
+npm run build:portable   # 产物见 portable/de-yms-yield-bin-pareto.html
+```
+
+> 原理:`scripts/build-portable.mjs` 把 vite 构建出的 JS/CSS 全部内联进一个 HTML,
+> 不引用任何外部文件,因此 `file://` 双击打开就能运行。
+
 ### 方式 B:本机 Node(开发,带热更新)
 
 ```bash

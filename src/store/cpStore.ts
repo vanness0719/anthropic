@@ -8,6 +8,12 @@ export type DataSource = 'mock' | 'real';
 const mockProduct = generateMockData();
 const productFor = (src: DataSource): Product => (src === 'real' ? realCp1 : mockProduct);
 
+// 便携版(单文件 HTML)可注入 window.__DE_YMS_SOURCE__='real' 让打开即显示真实 STDF 数据
+const initialSource: DataSource =
+  typeof window !== 'undefined' && (window as { __DE_YMS_SOURCE__?: string }).__DE_YMS_SOURCE__ === 'real'
+    ? 'real'
+    : 'mock';
+
 interface CpState {
   dataSource: DataSource; // mock 演示数据 vs 真实 STDF 解析数据
   product: Product;
@@ -26,8 +32,8 @@ interface CpState {
 }
 
 export const useCpStore = create<CpState>((set) => ({
-  dataSource: 'mock',
-  product: mockProduct,
+  dataSource: initialSource,
+  product: productFor(initialSource),
   binType: 'HBin',
   smartSplit: 'Day',
   mapMode: 'stacked',
