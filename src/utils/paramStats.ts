@@ -64,34 +64,75 @@ export function computeStats(values: number[], lo: number | null, hi: number | n
   };
 }
 
+export interface HistBin {
+  x0: number;
+  x1: number;
+  count: number;
+}
 export interface Histogram {
-  centers: number[];
-  counts: number[];
+  bins: HistBin[];
+  range: [number, number]; // 实际显示范围(已按 IQR 栅栏裁剪离群点)
+  below: number; // 低于显示范围、未计入柱的点数
+  above: number; // 高于显示范围
   binWidth: number;
+  clipped: boolean; // 是否裁剪了离群点
 }
 
-/** 等宽直方图;bins 默认 40 */
-export function histogram(values: number[], bins = 40): Histogram {
-  if (!values.length) return { centers: [], counts: [], binWidth: 0 };
-  let min = Infinity;
-  let max = -Infinity;
-  for (const v of values) {
-    if (v < min) min = v;
-    if (v > max) max = v;
+function quantile(sorted: number[], f: number): number {
+  const n = sorted.length;
+  const idx = (n - 1) * f;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+/**
+ * 等宽直方图,自动裁剪极端离群点使分布充满坐标轴。
+ * 显示范围 = [Q1-3·IQR, Q3+3·IQR] ∩ [min,max]:数据干净时不裁剪,只有远离群点被裁掉。
+ */
+export function histogram(values: number[], binCount = 40): Histogram {
+  const n = values.length;
+  if (!n) return { bins: [], range: [0, 0], below: 0, above: 0, binWidth: 0, clipped: false };
+  const sorted = [...values].sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[n - 1];
+
+  // 稳健范围:IQR 栅栏,退化时回退到 P0.5–P99.5,再退回 min/max
+  let lo: number;
+  let hi: number;
+  const q1 = quantile(sorted, 0.25);
+  const q3 = quantile(sorted, 0.75);
+  const iqr = q3 - q1;
+  if (iqr > 0) {
+    lo = Math.max(min, q1 - 3 * iqr);
+    hi = Math.min(max, q3 + 3 * iqr);
+  } else {
+    lo = quantile(sorted, 0.005);
+    hi = quantile(sorted, 0.995);
   }
-  if (min === max) {
-    return { centers: [min], counts: [values.length], binWidth: 1 };
+  if (!(hi > lo)) {
+    lo = min;
+    hi = max;
   }
-  const width = (max - min) / bins;
-  const counts = new Array(bins).fill(0);
+  if (!(hi > lo)) {
+    // 全部相同
+    return { bins: [{ x0: lo - 0.5, x1: lo + 0.5, count: n }], range: [lo - 0.5, lo + 0.5], below: 0, above: 0, binWidth: 1, clipped: false };
+  }
+
+  const width = (hi - lo) / binCount;
+  const counts = new Array(binCount).fill(0);
+  let below = 0;
+  let above = 0;
   for (const v of values) {
-    let idx = Math.floor((v - min) / width);
-    if (idx >= bins) idx = bins - 1;
+    if (v < lo) { below++; continue; }
+    if (v > hi) { above++; continue; }
+    let idx = Math.floor((v - lo) / width);
+    if (idx >= binCount) idx = binCount - 1;
     if (idx < 0) idx = 0;
     counts[idx]++;
   }
-  const centers = counts.map((_, i) => +(min + width * (i + 0.5)).toPrecision(6));
-  return { centers, counts, binWidth: width };
+  const bins: HistBin[] = counts.map((c, i) => ({ x0: lo + width * i, x1: lo + width * (i + 1), count: c }));
+  return { bins, range: [lo, hi], below, above, binWidth: width, clipped: below + above > 0 };
 }
 
 /** 数值格式化:自动在过大/过小时用科学计数法 */

@@ -31,20 +31,22 @@ export interface Wafer {
   sbinCounts: Record<number, number>; // SBin# -> 数量
 }
 
-/** 参数测试项(来自 STDF PTR 记录)*/
+/** 测试项(来自 STDF PTR / MPR / FTR 记录)*/
 export interface TestItem {
+  key: string; // 内部唯一标识(TEST_NUM + TEST_TXT;有的机台 TEST_NUM 恒为 0,靠名称区分)
   num: number; // TEST_NUM
   name: string; // TEST_TXT
   units: string; // UNITS
   lo: number | null; // LO_LIMIT
   hi: number | null; // HI_LIMIT
+  kind: 'P' | 'F'; // P=参数测试(PTR/MPR,有实测值);F=功能测试(FTR,仅通过/失败)
 }
 
 /** 参数测试数据:测试项列表 + 每个测试项每片 wafer 的实测值 */
 export interface ParamData {
   items: TestItem[];
-  // testNum -> waferId -> 实测值数组
-  values: Map<number, Map<string, number[]>>;
+  // testKey -> waferId -> 实测值数组
+  values: Map<string, Map<string, number[]>>;
 }
 
 /** 单个产品(本页 = CP1) */
