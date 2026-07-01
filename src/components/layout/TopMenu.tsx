@@ -70,8 +70,8 @@ export default function TopMenu() {
         gap: 24,
       }}
     >
-      <div style={{ fontWeight: 700, color: '#1677ff', fontSize: 16, letterSpacing: 0.5 }}>
-        DE-YMS
+      <div style={{ fontWeight: 700, color: '#1677ff', fontSize: 15, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
+        chip-stdf-analysis
       </div>
       <Space size={20}>
         {MENUS.map((m) => (

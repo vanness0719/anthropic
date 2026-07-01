@@ -20,7 +20,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>DE-YMS · CP Yield/Bin Pareto(便携版)</title>
+<title>chip-stdf-analysis</title>
 <style>${css}</style>
 </head>
 <body>
