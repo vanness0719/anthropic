@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button, Segmented, Space, Upload, message } from 'antd';
 import type { UploadProps } from 'antd';
+import type { Product } from '../../types/cp';
 import { useCpStore } from '../../store/cpStore';
 import { parseStdfFile } from '../../utils/stdfParser';
 
@@ -11,33 +12,50 @@ export default function TopMenu() {
   const dataSource = useCpStore((s) => s.dataSource);
   const setDataSource = useCpStore((s) => s.setDataSource);
   const uploadedProduct = useCpStore((s) => s.uploadedProduct);
-  const loadUploadedProduct = useCpStore((s) => s.loadUploadedProduct);
+  const addUploadedProducts = useCpStore((s) => s.addUploadedProducts);
+  const clearUploaded = useCpStore((s) => s.clearUploaded);
   const [parsing, setParsing] = useState(false);
+  // 多选一次触发多次 beforeUpload,用批次缓冲一次性解析
+  const batch = useRef<File[]>([]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+  const parseBatch = (files: File[]) => {
     setParsing(true);
-    const hide = message.loading(`正在解析 ${file.name} …`, 0);
-    parseStdfFile(file as unknown as File)
-      .then((product) => {
-        loadUploadedProduct(product);
-        const dies = product.wafers.reduce((s, w) => s + w.dies.length, 0);
-        message.success(`解析成功:${product.wafers.length} 片晶圆,${dies} 颗 die`);
-      })
-      .catch((err) => {
-        console.error(err);
-        message.error(`解析失败:${err instanceof Error ? err.message : String(err)}`);
+    const hide = message.loading(`正在解析 ${files.length} 个文件 …`, 0);
+    Promise.allSettled(files.map((f) => parseStdfFile(f)))
+      .then((results) => {
+        const ok = results.filter((r) => r.status === 'fulfilled').map((r) => (r as PromiseFulfilledResult<Product>).value);
+        const failed = results.length - ok.length;
+        if (ok.length) {
+          addUploadedProducts(ok);
+          const wafers = ok.reduce((s, p) => s + p.wafers.length, 0);
+          message.success(`解析成功:新增 ${wafers} 片晶圆(${ok.length} 个文件)${failed ? `,${failed} 个失败` : ''}`);
+        } else {
+          message.error('全部解析失败:请确认是 CP wafer STDF 文件');
+        }
       })
       .finally(() => {
         hide();
         setParsing(false);
       });
+  };
+
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    batch.current.push(file as unknown as File);
+    if (timer.current) clearTimeout(timer.current);
+    // 同一次多选的文件会连续进入,合并成一批
+    timer.current = setTimeout(() => {
+      const files = batch.current;
+      batch.current = [];
+      parseBatch(files);
+    }, 60);
     return false; // 阻止 antd 默认上传,纯前端解析
   };
 
   const options = [
     { label: 'Mock', value: 'mock' },
     { label: '内置真实STDF', value: 'real' },
-    ...(uploadedProduct ? [{ label: '我的STDF', value: 'upload' }] : []),
+    ...(uploadedProduct ? [{ label: `我的STDF (${uploadedProduct.wafers.length}片)`, value: 'upload' }] : []),
   ];
 
   return (
@@ -71,11 +89,16 @@ export default function TopMenu() {
         ))}
       </Space>
       <div style={{ flex: 1 }} />
-      <Upload beforeUpload={beforeUpload} showUploadList={false} accept=".stdf,.gz,.std">
+      <Upload beforeUpload={beforeUpload} showUploadList={false} multiple accept=".stdf,.gz,.std">
         <Button type="primary" size="small" loading={parsing}>
-          打开 STDF 文件
+          打开 STDF(可多选)
         </Button>
       </Upload>
+      {uploadedProduct && (
+        <Button size="small" onClick={clearUploaded}>
+          清空
+        </Button>
+      )}
       <Segmented
         size="small"
         value={dataSource}

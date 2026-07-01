@@ -10,6 +10,26 @@ const FAIL_COLORS = [
 const PASS_COLOR = '#73d13d';
 const INVALID_COORD = -32768;
 
+/** 由各 bin 计数 + 名称/类型元数据生成带配色的 Bin 定义(pass 在前,fail 按数量降序上色)。 */
+export function buildBinsFrom(
+  totals: Map<number, number>,
+  meta: Map<number, { name: string; type: BinKind }>
+): Bin[] {
+  const rows: { bin: number; name: string; type: BinKind; cnt: number }[] = [];
+  for (const [bin, cnt] of totals) {
+    const m = meta.get(bin);
+    rows.push({ bin, name: m?.name || `BIN${bin}`, type: m?.type ?? 'fail', cnt });
+  }
+  const passes = rows.filter((r) => r.type === 'pass').sort((a, b) => b.cnt - a.cnt);
+  const fails = rows.filter((r) => r.type === 'fail').sort((a, b) => b.cnt - a.cnt);
+  return [
+    ...passes.map((r) => ({ bin: r.bin, name: r.name, type: r.type, color: PASS_COLOR })),
+    ...fails.map((r, i) => ({
+      bin: r.bin, name: r.name, type: r.type, color: FAIL_COLORS[i % FAIL_COLORS.length],
+    })),
+  ];
+}
+
 interface WipWafer {
   waferId: string;
   dateT: number; // unix 秒
@@ -166,35 +186,67 @@ export function parseStdfRecords(buf: ArrayBuffer): Product {
       } as Wafer;
     });
 
-  const buildBins = (
-    totals: Map<number, number>,
-    names: Map<number, { name: string; pf: string }>
-  ): Bin[] => {
-    const rows: { bin: number; name: string; type: BinKind; cnt: number }[] = [];
-    for (const [bin, cnt] of totals) {
-      const meta = names.get(bin);
-      const type: BinKind = meta?.pf === 'P' ? 'pass' : 'fail';
-      rows.push({ bin, name: meta?.name || `BIN${bin}`, type, cnt });
-    }
-    const passes = rows.filter((r) => r.type === 'pass').sort((a, b) => b.cnt - a.cnt);
-    const fails = rows.filter((r) => r.type === 'fail').sort((a, b) => b.cnt - a.cnt);
-    return [
-      ...passes.map((r) => ({ bin: r.bin, name: r.name, type: r.type, color: PASS_COLOR })),
-      ...fails.map((r, i) => ({
-        bin: r.bin, name: r.name, type: r.type, color: FAIL_COLORS[i % FAIL_COLORS.length],
-      })),
-    ];
-  };
+  const toTypeMeta = (names: Map<number, { name: string; pf: string }>) =>
+    new Map([...names].map(([k, v]) => [k, { name: v.name, type: (v.pf === 'P' ? 'pass' : 'fail') as BinKind }]));
 
   const dates = outWafers.map((w) => w.date).sort();
   return {
     productId: mirPart || 'CP',
     dateRange: [dates[0], dates[dates.length - 1]],
-    hbins: buildBins(hTotal, hName),
-    sbins: buildBins(sTotal, sName),
+    hbins: buildBinsFrom(hTotal, toTypeMeta(hName)),
+    sbins: buildBinsFrom(sTotal, toTypeMeta(sName)),
     wafers: outWafers,
     baselineWaferIds: outWafers.map((w) => w.waferId),
     gridSize: maxCoord + 1,
+  };
+}
+
+/** 合并多个 Product(来自多个 STDF 文件)为一个多晶圆数据集。 */
+export function mergeProducts(products: Product[]): Product {
+  const wafers: Wafer[] = [];
+  const seen = new Set<string>();
+  for (const p of products) {
+    for (const w of p.wafers) {
+      let id = w.waferId;
+      if (seen.has(id)) {
+        let k = 2;
+        while (seen.has(`${id}#${k}`)) k++;
+        id = `${id}#${k}`;
+      }
+      seen.add(id);
+      wafers.push(id === w.waferId ? w : { ...w, waferId: id });
+    }
+  }
+
+  const hMeta = new Map<number, { name: string; type: BinKind }>();
+  const sMeta = new Map<number, { name: string; type: BinKind }>();
+  for (const p of products) {
+    for (const b of p.hbins) if (!hMeta.has(b.bin)) hMeta.set(b.bin, { name: b.name, type: b.type });
+    for (const b of p.sbins) if (!sMeta.has(b.bin)) sMeta.set(b.bin, { name: b.name, type: b.type });
+  }
+
+  const hTotal = new Map<number, number>();
+  const sTotal = new Map<number, number>();
+  let grid = 0;
+  for (const w of wafers) {
+    for (const k in w.hbinCounts) hTotal.set(+k, (hTotal.get(+k) ?? 0) + w.hbinCounts[+k]);
+    for (const k in w.sbinCounts) sTotal.set(+k, (sTotal.get(+k) ?? 0) + w.sbinCounts[+k]);
+    for (const d of w.dies) {
+      if (d.x > grid) grid = d.x;
+      if (d.y > grid) grid = d.y;
+    }
+  }
+
+  const dates = wafers.map((w) => w.date).sort();
+  const pids = [...new Set(products.map((p) => p.productId))];
+  return {
+    productId: pids.length === 1 ? pids[0] : `${pids[0]} +${pids.length - 1}`,
+    dateRange: [dates[0], dates[dates.length - 1]],
+    hbins: buildBinsFrom(hTotal, hMeta),
+    sbins: buildBinsFrom(sTotal, sMeta),
+    wafers,
+    baselineWaferIds: wafers.map((w) => w.waferId),
+    gridSize: grid + 1,
   };
 }
 

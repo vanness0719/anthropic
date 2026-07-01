@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { BinType, MapMode, Product, SmartSplit } from '../types/cp';
 import { generateMockData } from '../mock/generateMockData';
 import { realCp1 } from '../data/realCp1';
+import { mergeProducts } from '../utils/stdfParser';
 
 export type DataSource = 'mock' | 'real' | 'upload';
 
@@ -24,7 +25,8 @@ interface CpState {
   highlightedBin: number | null; // 表/帕累托 ↔ wafermap 联动高亮
 
   setDataSource: (s: DataSource) => void;
-  loadUploadedProduct: (p: Product) => void; // 上传解析成功后调用
+  addUploadedProducts: (products: Product[]) => void; // 上传解析成功后调用(累加合并多片)
+  clearUploaded: () => void;
   setBinType: (t: BinType) => void;
   setSmartSplit: (s: SmartSplit) => void;
   setMapMode: (m: MapMode) => void;
@@ -49,8 +51,16 @@ export const useCpStore = create<CpState>((set, get) => ({
       dataSource === 'real' ? realCp1 : dataSource === 'upload' ? uploadedProduct ?? mockProduct : mockProduct;
     set({ dataSource, product, selectedWaferIds: [], highlightedBin: null });
   },
-  loadUploadedProduct: (uploadedProduct) =>
-    set({ uploadedProduct, dataSource: 'upload', product: uploadedProduct, selectedWaferIds: [], highlightedBin: null }),
+  // 累加合并:新上传的文件与已有上传数据集一起,支持"分多次加载,同时看多片"
+  addUploadedProducts: (products) => {
+    const { uploadedProduct } = get();
+    const merged = mergeProducts([...(uploadedProduct ? [uploadedProduct] : []), ...products]);
+    set({ uploadedProduct: merged, dataSource: 'upload', product: merged, selectedWaferIds: [], highlightedBin: null });
+  },
+  clearUploaded: () => {
+    const src: DataSource = 'mock';
+    set({ uploadedProduct: null, dataSource: src, product: mockProduct, selectedWaferIds: [], highlightedBin: null });
+  },
   setBinType: (binType) => set({ binType }),
   setSmartSplit: (smartSplit) => set({ smartSplit }),
   setMapMode: (mapMode) => set({ mapMode }),

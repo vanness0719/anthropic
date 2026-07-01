@@ -69,10 +69,14 @@ docker compose up --build
 **`portable/de-yms-yield-bin-pareto.html`** —— 下载后**双击用浏览器打开**即可,
 默认展示内置真实 STDF 数据(wafer `PC8C32-01B7`,yield 99.24%),顶栏可切回 Mock。
 
-**打开自己的 STDF 文件**:点顶栏 **「打开 STDF 文件」** 按钮,选择 `.stdf` 或 `.stdf.gz`
-——纯前端解析(gzip 用浏览器原生 `DecompressionStream`),无需联网、不上传服务器。
-解析器见 `src/utils/stdfParser.ts`(读取 MIR/WIR/WRR/PRR/HBR/SBR,支持多片晶圆,
-185MB 解压后约 0.1s 解析完)。
+**打开自己的 STDF 文件(支持多选)**:点顶栏 **「打开 STDF(可多选)」**,一次选多个
+`.stdf` / `.stdf.gz`——纯前端解析(gzip 用浏览器原生 `DecompressionStream`),无需联网、
+不上传服务器。多个文件会**合并为一个多晶圆数据集**,趋势图/帕累托/KPI/晶圆图同时反映多片;
+可多次加载累加,「清空」按钮重置。解析器见 `src/utils/stdfParser.ts`
+(读取 MIR/WIR/WRR/PRR/HBR/SBR,`mergeProducts` 合并多片,185MB 解压后约 0.1s/文件)。
+
+**晶圆图交互**:X/Y 坐标轴刻度;鼠标悬停显示该 die 的坐标、Bin# 与名称(叠加多片时显示片数与 pass%);
+失效 die 放大并加深色描边,在良率图上一眼可辨。
 
 重新生成(改动源码后):
 
