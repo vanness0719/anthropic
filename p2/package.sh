@@ -11,7 +11,7 @@ if [ ! -d .venv ]; then
 fi
 .venv/bin/pip install --quiet pyinstaller
 
-.venv/bin/pyinstaller --onefile --name "A股行情" \
+.venv/bin/pyinstaller --onefile --name "AStock" \
   --distpath dist_app --workpath .build --specpath .build \
   --paths backend \
   --collect-submodules app \
@@ -20,5 +20,5 @@ fi
   --noconfirm --clean serve.py
 
 echo
-echo "打包完成: $(pwd)/dist_app/A股行情"
-echo "以后双击它即可启动(无需 Python)。"
+echo "打包完成: $(pwd)/dist_app/AStock"
+echo "以后双击它即可启动 A股行情 App(无需 Python)。"
