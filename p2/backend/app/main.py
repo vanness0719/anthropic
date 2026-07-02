@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -38,7 +39,8 @@ def health():
 
 # 单进程模式:若前端已构建(frontend/dist 存在),由后端直接托管,
 # 手机访问 http://<IP>:8000 即可,无需单独跑 nginx/vite。
-_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+# P2_DIST 供 PyInstaller 打包后指向解包目录(见 serve.py)。
+_DIST = Path(os.environ.get("P2_DIST") or Path(__file__).resolve().parents[2] / "frontend" / "dist")
 if _DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
 

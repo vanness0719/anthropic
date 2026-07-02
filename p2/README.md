@@ -24,16 +24,21 @@ FastAPI + akshare(内存 TTL 缓存 + pandas 指标/回测引擎)
   信号收盘确认、**次日开盘成交**(无未来函数);输出总收益/年化/最大回撤/胜率/净值曲线(对比买入持有)/逐笔交易。
 - **指标口径**:MACD(12,26,9) 柱 = 2×(DIF−DEA);KDJ(9,3,3) 用国内 SMA(X,m,1) 递推。图表显示用 klinecharts 内置指标,回测用后端 pandas 实现,二者互为校验。
 
-## 最快上手(一键启动,只需 Python)
+## 最快上手
 
-前端构建产物已入库,不需要 Node/Docker:
+前端构建产物已入库,不需要 Node/Docker。三种由简到全:
 
-```bash
-./start.sh        # Windows 用 start.bat;首次运行自动装依赖
-```
+**① 双击启动(需装过 Python 3.11+)**
+Windows 双击 `start.bat`,macOS 双击 `启动App.command`(首次右键 → 打开)。
+首次运行自动装依赖;启动后**自动打开浏览器**,终端同时打印局域网地址和**二维码**,
+iPhone(同一 Wi-Fi)扫码打开 → Safari「分享 → 添加到主屏幕」即可当 App 用。
 
-终端会打印局域网地址和**二维码**,iPhone(同一 Wi-Fi)扫码打开,
-Safari「分享 → 添加到主屏幕」即可像 App 一样使用。
+**② 打包成免 Python 的可执行文件**
+Windows 双击 `package.bat`(macOS 跑 `./package.sh`)打包一次,
+产物在 `dist_app/A股行情(.exe)`(约 70MB)——以后双击这个文件即开,
+换台没有 Python 的电脑也能用。注意 exe 不能跨系统,在哪个系统用就在哪个系统打包。
+
+**③ 命令行**:`./start.sh` 或 `python serve.py`。
 
 ## 本地开发
 
