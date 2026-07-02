@@ -1,0 +1,2 @@
+# dist 构建产物特意入库:让使用者只装 Python 即可运行(见 ../start.sh)
+!dist/

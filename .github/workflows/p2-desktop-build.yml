@@ -1,0 +1,66 @@
+# 云端打包 p2 A股行情 App 的桌面可执行文件(Windows exe + macOS 二进制)
+# 产物在 Actions 运行页面的 Artifacts 里下载,本机无需 Python
+name: p2-desktop-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/project-path-p2-setup-ln64ts]
+    paths:
+      - "p2/**"
+      - ".github/workflows/p2-desktop-build.yml"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: AStock-Windows
+            binary: p2/dist_app/AStock.exe
+          - os: macos-latest
+            artifact: AStock-macOS
+            binary: p2/dist_app/AStock
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r p2/backend/requirements.txt pyinstaller
+
+      - name: Build single-file executable
+        shell: bash
+        working-directory: p2
+        run: |
+          DIST_SRC="$PWD/frontend/dist"
+          # Windows runner 的 git-bash $PWD 是 POSIX 风格,PyInstaller 需要原生路径
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            DIST_SRC="$(cygpath -w "$DIST_SRC")"
+          fi
+          pyinstaller --onefile --name AStock \
+            --distpath dist_app --workpath .build --specpath .build \
+            --paths backend \
+            --collect-submodules app \
+            --collect-all akshare \
+            --add-data "$DIST_SRC:dist" \
+            --noconfirm --clean serve.py
+
+      - name: Smoke test executable
+        shell: bash
+        run: |
+          ${{ matrix.binary }} &
+          SERVER_PID=$!
+          sleep 12
+          curl -sf http://127.0.0.1:8000/api/health
+          curl -sf -o /dev/null http://127.0.0.1:8000/
+          kill $SERVER_PID
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
