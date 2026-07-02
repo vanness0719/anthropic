@@ -37,12 +37,17 @@ jobs:
         shell: bash
         working-directory: p2
         run: |
+          DIST_SRC="$PWD/frontend/dist"
+          # Windows runner 的 git-bash $PWD 是 POSIX 风格,PyInstaller 需要原生路径
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            DIST_SRC="$(cygpath -w "$DIST_SRC")"
+          fi
           pyinstaller --onefile --name AStock \
             --distpath dist_app --workpath .build --specpath .build \
             --paths backend \
             --collect-submodules app \
             --collect-all akshare \
-            --add-data "$PWD/frontend/dist:dist" \
+            --add-data "$DIST_SRC:dist" \
             --noconfirm --clean serve.py
 
       - name: Smoke test executable
