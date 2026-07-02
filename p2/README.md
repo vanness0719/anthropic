@@ -24,6 +24,17 @@ FastAPI + akshare(内存 TTL 缓存 + pandas 指标/回测引擎)
   信号收盘确认、**次日开盘成交**(无未来函数);输出总收益/年化/最大回撤/胜率/净值曲线(对比买入持有)/逐笔交易。
 - **指标口径**:MACD(12,26,9) 柱 = 2×(DIF−DEA);KDJ(9,3,3) 用国内 SMA(X,m,1) 递推。图表显示用 klinecharts 内置指标,回测用后端 pandas 实现,二者互为校验。
 
+## 最快上手(一键启动,只需 Python)
+
+前端构建产物已入库,不需要 Node/Docker:
+
+```bash
+./start.sh        # Windows 用 start.bat;首次运行自动装依赖
+```
+
+终端会打印局域网地址和**二维码**,iPhone(同一 Wi-Fi)扫码打开,
+Safari「分享 → 添加到主屏幕」即可像 App 一样使用。
+
 ## 本地开发
 
 ```bash

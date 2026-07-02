@@ -1,8 +1,10 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .routers import backtest, fundflow, kline, quotes, sentiment
@@ -32,3 +34,17 @@ def upstream_error(_: Request, exc: UpstreamError):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "data_source": config.DATA_SOURCE}
+
+
+# 单进程模式:若前端已构建(frontend/dist 存在),由后端直接托管,
+# 手机访问 http://<IP>:8000 即可,无需单独跑 nginx/vite。
+_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if _DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
+
+    @app.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+    def spa(path: str):
+        f = _DIST / path
+        if path and ".." not in path and f.is_file():
+            return FileResponse(f)
+        return FileResponse(_DIST / "index.html")  # SPA 路由回退
