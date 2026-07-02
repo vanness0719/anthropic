@@ -72,6 +72,30 @@ export interface MarketMoodResp {
   mood: { score: number; up: number; down: number; limit_up: number; limit_down: number }
 }
 
+export interface RatingSignal {
+  name: string
+  key: 'trend' | 'macd' | 'kdj' | 'volume' | 'fund'
+  score: number
+  signal: 'bullish' | 'bearish' | 'neutral'
+  detail: string
+}
+
+export interface RatingResp {
+  source: Source
+  code: string
+  score: number
+  action: string
+  strategy: string
+  signals: RatingSignal[]
+  disclaimer: string
+}
+
+export interface RatingLite {
+  code: string
+  score: number
+  action: string
+}
+
 export interface Trade {
   entry_ts: number
   entry_price: number

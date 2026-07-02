@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CapsuleTabs, DotLoading, ErrorBlock, NavBar, Selector, Tabs, Tag } from 'antd-mobile'
 import KLineChart, { type SubIndicator } from '../components/kline/KLineChart'
+import RatingCard from '../components/rating/RatingCard'
 import { FUND_INDICATOR } from '../components/kline/fundFlowIndicator'
 import FundFlowBar from '../components/fundflow/FundFlowBar'
 import FundFlowTrend from '../components/fundflow/FundFlowTrend'
@@ -23,7 +24,7 @@ const PERIODS: { label: string; value: Period }[] = [
 export default function StockDetailPage() {
   const { code = '' } = useParams()
   const nav = useNavigate()
-  const { period, bars, klineSource, fundflow, sentiment, market, loading, error, setPeriod, loadAll } = useStock()
+  const { period, bars, klineSource, fundflow, sentiment, market, rating, loading, error, setPeriod, loadAll } = useStock()
   const quote = useWatchlist(s => s.quotes[code])
   const [subs, setSubs] = useState<SubIndicator[]>(['MACD', FUND_INDICATOR])
 
@@ -57,6 +58,8 @@ export default function StockDetailPage() {
           <span style={{ color: TEXT_2, fontSize: 12, marginLeft: 'auto' }}>换手 {quote.turnover}%</span>
         </div>
       )}
+
+      {rating && <RatingCard data={rating} />}
 
       <CapsuleTabs activeKey={period} onChange={k => void setPeriod(k as Period)}>
         {PERIODS.map(p => <CapsuleTabs.Tab title={p.label} key={p.value} />)}

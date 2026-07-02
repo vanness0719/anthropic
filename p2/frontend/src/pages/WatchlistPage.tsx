@@ -5,21 +5,27 @@ import { AddCircleOutline } from 'antd-mobile-icons'
 import * as api from '../api/client'
 import type { Quote, Source } from '../api/types'
 import { useWatchlist } from '../store/watchlistStore'
+import { actionColor } from '../components/rating/RatingCard'
 import { fmtAmount, fmtSigned } from '../utils/format'
-import { signColor, TEXT_2 } from '../theme'
+import { ACCENT, signColor, TEXT_2 } from '../theme'
 
 export default function WatchlistPage() {
   const nav = useNavigate()
-  const { codes, quotes, mainNets, source, add, remove, refresh, loadMainNets } = useWatchlist()
+  const { codes, quotes, mainNets, ratings, sortByScore, source, add, remove, toggleSort, refresh, loadMainNets, loadRatings } = useWatchlist()
   const [kw, setKw] = useState('')
   const [hits, setHits] = useState<Quote[]>([])
 
   useEffect(() => {
     void refresh()
     void loadMainNets()
+    void loadRatings()
     const timer = setInterval(() => void refresh(), 30_000)
     return () => clearInterval(timer)
-  }, [refresh, loadMainNets])
+  }, [refresh, loadMainNets, loadRatings])
+
+  const shownCodes = sortByScore
+    ? [...codes].sort((a, b) => (ratings[b]?.score ?? -1) - (ratings[a]?.score ?? -1))
+    : codes
 
   const search = async (v: string) => {
     if (!v.trim()) { setHits([]); return }
@@ -35,6 +41,18 @@ export default function WatchlistPage() {
     <div style={{ paddingBottom: 60 }}>
       <NavBar
         back={null}
+        left={
+          <span
+            onClick={toggleSort}
+            style={{
+              fontSize: 12, padding: '2px 10px', borderRadius: 12, cursor: 'pointer',
+              border: `1px solid ${sortByScore ? ACCENT : '#3a3a3a'}`,
+              color: sortByScore ? ACCENT : TEXT_2,
+            }}
+          >
+            按评分排序{sortByScore ? ' ✓' : ''}
+          </span>
+        }
         right={source === 'mock' ? <Tag color="warning" fill="outline">模拟数据</Tag> : undefined}
       >
         自选股
@@ -73,11 +91,12 @@ export default function WatchlistPage() {
         </List>
       )}
 
-      <PullToRefresh onRefresh={async () => { await refresh(); await loadMainNets() }}>
+      <PullToRefresh onRefresh={async () => { await refresh(); await loadMainNets(); await loadRatings() }}>
         <List>
-          {codes.map(code => {
+          {shownCodes.map(code => {
             const q = quotes[code]
             const main = mainNets[code]
+            const rate = ratings[code]
             return (
               <SwipeAction
                 key={code}
@@ -85,7 +104,19 @@ export default function WatchlistPage() {
               >
                 <List.Item
                   onClick={() => nav(`/stock/${code}`)}
-                  description={code}
+                  description={
+                    rate ? (
+                      <span>
+                        {code}
+                        <span style={{
+                          marginLeft: 8, fontSize: 11, padding: '1px 6px', borderRadius: 4,
+                          color: actionColor(rate.action), border: `1px solid ${actionColor(rate.action)}`,
+                        }}>
+                          {rate.score.toFixed(0)}分 · {rate.action}
+                        </span>
+                      </span>
+                    ) : code
+                  }
                   extra={
                     q ? (
                       <div style={{ textAlign: 'right' }}>

@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from .routers import backtest, fundflow, kline, quotes, sentiment
+from .routers import backtest, fundflow, kline, quotes, rating, sentiment
 from .services.provider import UpstreamError
 
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (quotes.router, kline.router, fundflow.router, sentiment.router, backtest.router):
+for r in (quotes.router, kline.router, fundflow.router, sentiment.router, backtest.router, rating.router):
     app.include_router(r, prefix="/api")
 
 
