@@ -12,6 +12,15 @@ import threading
 import webbrowser
 from pathlib import Path
 
+# Windows 控制台默认编码(GBK/cp1252)打印中文横幅会 UnicodeEncodeError,
+# 重配为 UTF-8;仍编不出的字符降级替换而不是崩溃
+for _stream in (sys.stdout, sys.stderr):
+    if _stream is not None and hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
 if getattr(sys, "frozen", False):  # PyInstaller 解包目录
     _BASE = Path(getattr(sys, "_MEIPASS"))
     os.environ.setdefault("P2_DIST", str(_BASE / "dist"))
