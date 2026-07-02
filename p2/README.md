@@ -26,7 +26,13 @@ FastAPI + akshare(内存 TTL 缓存 + pandas 指标/回测引擎)
 
 ## 最快上手
 
-前端构建产物已入库,不需要 Node/Docker。三种由简到全:
+前端构建产物已入库,不需要 Node/Docker。四种由简到全:
+
+**⓪ 直接下载可执行文件(推荐,什么都不用装)**
+仓库 **Actions → p2-desktop-build** 页面,打开最近一次成功的运行,底部 Artifacts 下载
+`AStock-Windows`(内含 AStock.exe)或 `AStock-macOS`,解压后双击即用。
+产物经过云端冒烟测试(启动 + 接口探活)才上传;保留 90 天,过期在 Actions 页面 Re-run 一次即可。
+Windows 首次运行遇 SmartScreen 点「更多信息 → 仍要运行」;Mac 首次右键 → 打开。
 
 **① 双击启动(需装过 Python 3.11+)**
 Windows 双击 `start.bat`,macOS 双击 `启动App.command`(首次右键 → 打开)。
