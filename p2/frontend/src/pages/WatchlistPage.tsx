@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { List, NavBar, PullToRefresh, SearchBar, SwipeAction, Tag, Toast } from 'antd-mobile'
 import { AddCircleOutline } from 'antd-mobile-icons'
@@ -14,6 +14,9 @@ export default function WatchlistPage() {
   const { codes, quotes, mainNets, ratings, sortByScore, source, add, remove, toggleSort, refresh, loadMainNets, loadRatings } = useWatchlist()
   const [kw, setKw] = useState('')
   const [hits, setHits] = useState<Quote[]>([])
+  const [searching, setSearching] = useState(false)
+  const debounceTimer = useRef<number>()
+  const reqSeq = useRef(0) // 丢弃过期的搜索响应,避免旧结果覆盖新输入
 
   useEffect(() => {
     void refresh()
@@ -27,14 +30,23 @@ export default function WatchlistPage() {
     ? [...codes].sort((a, b) => (ratings[b]?.score ?? -1) - (ratings[a]?.score ?? -1))
     : codes
 
-  const search = async (v: string) => {
-    if (!v.trim()) { setHits([]); return }
-    try {
-      const r = await api.get<{ source: Source; items: Quote[] }>('/search', { kw: v.trim() })
-      setHits(r.items)
-    } catch (e) {
-      Toast.show(String(e))
-    }
+  const search = (v: string) => {
+    setKw(v)
+    window.clearTimeout(debounceTimer.current)
+    if (!v.trim()) { setHits([]); setSearching(false); return }
+    // 防抖:全市场快照接口较重,停止输入 300ms 后才发请求
+    debounceTimer.current = window.setTimeout(async () => {
+      const seq = ++reqSeq.current
+      setSearching(true)
+      try {
+        const r = await api.get<{ source: Source; items: Quote[] }>('/search', { kw: v.trim() })
+        if (seq === reqSeq.current) setHits(r.items)
+      } catch (e) {
+        if (seq === reqSeq.current) { setHits([]); Toast.show(`搜索失败:${e instanceof Error ? e.message : e}`) }
+      } finally {
+        if (seq === reqSeq.current) setSearching(false)
+      }
+    }, 300)
   }
 
   return (
@@ -61,10 +73,34 @@ export default function WatchlistPage() {
         <SearchBar
           placeholder="输入代码或名称添加自选"
           value={kw}
-          onChange={v => { setKw(v); void search(v) }}
-          onClear={() => setHits([])}
+          onChange={search}
+          onClear={() => { setHits([]); setSearching(false) }}
         />
       </div>
+
+      {searching && (
+        <div style={{ padding: '10px 16px', color: TEXT_2, fontSize: 13 }}>搜索中…(首次搜索需拉取全市场行情,可能要几秒)</div>
+      )}
+
+      {!searching && kw.trim() !== '' && hits.length === 0 && (
+        <List header="搜索结果">
+          {/^\d{6}$/.test(kw.trim()) ? (
+            <List.Item
+              description="快照中未找到,仍可按代码直接添加"
+              extra={<AddCircleOutline fontSize={22} />}
+              onClick={() => {
+                add(kw.trim())
+                Toast.show(`已添加 ${kw.trim()}`)
+                setKw(''); setHits([])
+              }}
+            >
+              直接添加 {kw.trim()}
+            </List.Item>
+          ) : (
+            <List.Item disabled>未找到「{kw.trim()}」,可尝试输入 6 位代码</List.Item>
+          )}
+        </List>
+      )}
 
       {hits.length > 0 && (
         <List header="搜索结果">

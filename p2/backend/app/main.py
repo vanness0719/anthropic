@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -25,6 +26,20 @@ app.add_middleware(
 
 for r in (quotes.router, kline.router, fundflow.router, sentiment.router, backtest.router, rating.router):
     app.include_router(r, prefix="/api")
+
+
+@app.on_event("startup")
+def prewarm_spot_cache():
+    """后台预热全市场快照:akshare 首次拉取要十几秒,避免用户首次搜索卡住。"""
+    from .services import provider
+
+    def warm():
+        try:
+            provider.spot()
+        except Exception:
+            pass  # 失败不影响启动,搜索时会再试并按 auto 规则降级
+
+    threading.Thread(target=warm, daemon=True).start()
 
 
 @app.exception_handler(UpstreamError)
