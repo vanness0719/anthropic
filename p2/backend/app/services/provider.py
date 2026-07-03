@@ -44,6 +44,27 @@ def spot():
     return _call(_spot, mock.spot)
 
 
+def quotes(codes: list[str]):
+    """按代码取快照。真实源:全市场快照过滤;mock 源:任意代码按需合成,
+    保证降级模式下新添加的股票也能显示名称与价格。"""
+    rows, source = spot()
+    by_code = {r["code"]: r for r in rows}
+    if source == "mock":
+        return [by_code.get(c) or mock.quote_of(c) for c in codes], source
+    return [by_code[c] for c in codes if c in by_code], source
+
+
+def search(kw: str):
+    """按代码/名称模糊搜索。mock 源下 6 位代码未命中时合成结果,
+    避免降级模式搜索科创板等池外股票无响应。"""
+    rows, source = spot()
+    kw = kw.strip().lower()
+    hits = [r for r in rows if kw in r["code"] or kw in r["name"].lower()]
+    if not hits and source == "mock" and kw.isdigit() and len(kw) == 6:
+        hits = [mock.quote_of(kw)]
+    return hits, source
+
+
 def kline(code: str, period: str, adjust: str):
     return _call(_kline, mock.kline, code, period, adjust)
 

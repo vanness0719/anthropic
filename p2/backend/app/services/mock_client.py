@@ -94,19 +94,21 @@ def _canonical(code: str) -> list[dict]:
     return out
 
 
+def quote_of(code: str) -> dict:
+    """任意代码的实时快照(与该代码的规范日线同源,末两根推导)。"""
+    bars = _daily_walk(code, 2)
+    prev, last = bars[-2]["close"], bars[-1]["close"]
+    return {
+        "code": code, "name": name_of(code), "price": last,
+        "change_pct": round((last - prev) / prev * 100, 2),
+        "change": round(last - prev, 2),
+        "volume": bars[-1]["volume"], "amount": bars[-1]["amount"],
+        "turnover": round(_rng(code, "to").uniform(0.3, 8), 2),
+    }
+
+
 def spot() -> list[dict]:
-    out = []
-    for code, name in STOCKS:
-        bars = _daily_walk(code, 2)
-        prev, last = bars[-2]["close"], bars[-1]["close"]
-        out.append({
-            "code": code, "name": name, "price": last,
-            "change_pct": round((last - prev) / prev * 100, 2),
-            "change": round(last - prev, 2),
-            "volume": bars[-1]["volume"], "amount": bars[-1]["amount"],
-            "turnover": round(_rng(code, "to").uniform(0.3, 8), 2),
-        })
-    return out
+    return [quote_of(code) for code, _ in STOCKS]
 
 
 _MIN_PERIODS = {"1", "5", "15", "30", "60"}

@@ -24,6 +24,24 @@ def test_search_and_quotes():
     assert all(i["price"] > 0 for i in q["items"])
 
 
+def test_search_and_quotes_synthesize_out_of_pool_code():
+    """mock/降级模式:池外代码(如科创板 688018)搜索与快照按需合成,不再空响应。"""
+    r = client.get("/api/search", params={"kw": "688018"}).json()
+    assert len(r["items"]) == 1
+    assert r["items"][0]["code"] == "688018"
+    assert r["items"][0]["price"] > 0
+    q = client.get("/api/quotes", params={"codes": "688018,600519"}).json()
+    assert [i["code"] for i in q["items"]] == ["688018", "600519"]
+    # 快照价与日 K 末根收盘一致(同一规范序列)
+    k = client.get("/api/kline/688018", params={"limit": 30}).json()
+    assert abs(q["items"][0]["price"] - k["items"][-1]["close"]) < 1e-9
+
+
+def test_search_non_code_keyword_no_synthesis():
+    r = client.get("/api/search", params={"kw": "不存在的股票名"}).json()
+    assert r["items"] == []
+
+
 def test_kline_shape_and_order():
     r = client.get("/api/kline/600519", params={"period": "daily", "limit": 100}).json()
     items = r["items"]
