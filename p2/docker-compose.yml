@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    container_name: p2-astock-backend
+    environment:
+      - P2_DATA_SOURCE=auto # auto / akshare / mock
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: p2-astock-frontend
+    ports:
+      - "8080:80" # iPhone 访问 http://<局域网IP>:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
