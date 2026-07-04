@@ -30,6 +30,14 @@
 
 ## 运行
 
+### 方式 A:便携版单文件(免安装,双击即用)⭐
+
+仓库内已提供打包好的单文件 **`portable/p3.html`** —— 下载后双击用浏览器打开即可
+(推荐 Chrome/Edge)。数据存在浏览器本地,顶栏可导出/导入 JSON 备份或交换。
+改动源码后重新生成:`npm run build:portable`。
+
+### 方式 B:本机 Node(开发)
+
 ```bash
 cd projects/p3
 npm install
