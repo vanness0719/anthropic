@@ -1,7 +1,8 @@
 // 汇总统计:按客户×型号(含客户合计)、按型号、各阶段在制订单。
 import { useState } from 'react';
 import type { Dayjs } from 'dayjs';
-import { Card, DatePicker, Select, Space, Table, Typography } from 'antd';
+import { Button, Card, DatePicker, Select, Space, Table, Typography, message } from 'antd';
+import { exportSummaryExcel } from '../utils/excel';
 import type { ColumnsType } from 'antd/es/table';
 import { useAppStore } from '../store/appStore';
 import {
@@ -82,6 +83,19 @@ export default function SummaryPage() {
         <Typography.Text type="secondary">
           按下单日期筛选,命中 {filtered.length} 单
         </Typography.Text>
+        <Button
+          type="primary"
+          onClick={() => {
+            if (!filtered.length) {
+              message.warning('当前筛选下没有订单可导出');
+              return;
+            }
+            exportSummaryExcel(filtered, { customer, model, start, end });
+            message.success('已导出 Excel(含汇总与订单明细)');
+          }}
+        >
+          导出 Excel
+        </Button>
       </Space>
       <Card size="small" title="按客户汇总(各型号数量与金额,含客户合计;不含已取消订单)">
         <Table
