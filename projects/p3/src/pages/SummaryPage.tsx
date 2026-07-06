@@ -1,6 +1,7 @@
 // 汇总统计:按客户×型号(含客户合计)、按型号、各阶段在制订单。
 import { useState } from 'react';
-import { Card, Select, Space, Table } from 'antd';
+import type { Dayjs } from 'dayjs';
+import { Card, DatePicker, Select, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useAppStore } from '../store/appStore';
 import {
@@ -17,9 +18,17 @@ export default function SummaryPage() {
   const orders = useAppStore((s) => s.db.orders);
   const [customer, setCustomer] = useState<string>();
   const [model, setModel] = useState<string>();
+  const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+
+  const start = range?.[0]?.format('YYYY-MM-DD');
+  const end = range?.[1]?.format('YYYY-MM-DD');
 
   const filtered = orders.filter(
-    (o) => (!customer || o.customer === customer) && (!model || o.productModel === model)
+    (o) =>
+      (!customer || o.customer === customer) &&
+      (!model || o.productModel === model) &&
+      (!start || o.orderDate >= start) &&
+      (!end || o.orderDate <= end)
   );
 
   const customerCols: ColumnsType<CustomerModelRow> = [
@@ -64,6 +73,15 @@ export default function SummaryPage() {
           onChange={setModel}
           options={[...new Set(orders.map((o) => o.productModel))].map((v) => ({ value: v, label: v }))}
         />
+        <DatePicker.RangePicker
+          allowEmpty={[true, true]}
+          placeholder={['起始日期', '结束日期']}
+          value={range}
+          onChange={(v) => setRange(v)}
+        />
+        <Typography.Text type="secondary">
+          按下单日期筛选,命中 {filtered.length} 单
+        </Typography.Text>
       </Space>
       <Card size="small" title="按客户汇总(各型号数量与金额,含客户合计;不含已取消订单)">
         <Table
