@@ -65,6 +65,8 @@ export function exportSummaryExcel(orders: Order[], meta: SummaryExportMeta): vo
     订单号: o.orderNo,
     客户: o.customer,
     产品型号: o.productModel,
+    晶圆名称: o.waferName ?? '',
+    晶圆版本: o.waferVersion ?? '',
     '数量(颗)': o.quantity,
     单价: o.unitPrice,
     币种: o.currency,
@@ -79,7 +81,7 @@ export function exportSummaryExcel(orders: Order[], meta: SummaryExportMeta): vo
   }));
   XLSX.utils.book_append_sheet(
     wb,
-    sheet(detailRows, [16, 14, 14, 10, 8, 6, 12, 11, 11, 11, 10, 8, 8, 8]),
+    sheet(detailRows, [16, 14, 14, 12, 10, 10, 8, 6, 12, 11, 11, 11, 10, 8, 8, 8]),
     '订单明细'
   );
 

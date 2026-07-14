@@ -24,7 +24,9 @@ export default function OrdersPage() {
   const filtered = orders.filter((o) => {
     if (!kw) return true;
     const t = kw.toLowerCase();
-    return [o.orderNo, o.customer, o.productModel, o.poNo ?? ''].some((v) => v.toLowerCase().includes(t));
+    return [o.orderNo, o.customer, o.productModel, o.poNo ?? '', o.waferName ?? ''].some((v) =>
+      v.toLowerCase().includes(t)
+    );
   });
 
   const uniq = (get: (o: Order) => string) =>
@@ -45,6 +47,11 @@ export default function OrdersPage() {
     },
     { title: '客户', dataIndex: 'customer', width: 110, filters: uniq((o) => o.customer), onFilter: (v, o) => o.customer === v },
     { title: '型号', dataIndex: 'productModel', width: 120, filters: uniq((o) => o.productModel), onFilter: (v, o) => o.productModel === v },
+    {
+      title: '晶圆',
+      width: 120,
+      render: (_, o) => (o.waferName || o.waferVersion ? `${o.waferName ?? '-'} / ${o.waferVersion ?? '-'}` : '-'),
+    },
     { title: '数量', dataIndex: 'quantity', width: 80, align: 'right', render: (v: number) => v.toLocaleString() },
     {
       title: '单价',

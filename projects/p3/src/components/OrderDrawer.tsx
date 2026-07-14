@@ -31,6 +31,8 @@ interface FormVals {
   customer: string;
   customerContact?: string;
   productModel: string;
+  waferName?: string;
+  waferVersion?: string;
   quantity: number;
   unitPrice: number;
   currency: Currency;
@@ -169,6 +171,16 @@ export default function OrderDrawer({ openKey, onClose, onCreated }: Props) {
           <Col span={6}>
             <Form.Item name="poNo" label="PO 号">
               <Input />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="waferName" label="晶圆名称">
+              <Input placeholder="如 CCFC2011" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="waferVersion" label="晶圆版本">
+              <Input placeholder="如 B2" />
             </Form.Item>
           </Col>
           <Col span={6}>

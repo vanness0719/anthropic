@@ -27,6 +27,8 @@ const SALES_FIELD_LABELS: Record<string, string> = {
   customer: '客户',
   customerContact: '客户联系人',
   productModel: '产品型号',
+  waferName: '晶圆名称',
+  waferVersion: '晶圆版本',
   quantity: '数量',
   unitPrice: '单价',
   currency: '币种',

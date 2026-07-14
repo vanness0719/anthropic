@@ -60,6 +60,8 @@ export interface SalesInput {
   customer: string;
   customerContact?: string;
   productModel: string;
+  waferName?: string; // 晶圆名称
+  waferVersion?: string; // 晶圆版本
   quantity: number; // 订购数量(颗)
   unitPrice: number;
   currency: Currency;
