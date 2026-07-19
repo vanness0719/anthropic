@@ -1,0 +1,6 @@
+node_modules
+dist
+portable
+p3-data
+*.log
+.DS_Store

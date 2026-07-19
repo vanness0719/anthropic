@@ -1,0 +1,147 @@
+// 设置:各阶段默认周期(新建订单预填)与用户管理。
+// server 模式:新增用户带密码、管理员可重置密码、本人可改密码;local 模式:无密码。
+import { useState } from 'react';
+import { Button, Card, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { ROLE_LABELS, STAGE_LABELS, STAGE_ORDER } from '../constants/stages';
+import { useAppStore } from '../store/appStore';
+import type { Role, StageKey, User } from '../types';
+
+export default function SettingsPage() {
+  const settings = useAppStore((s) => s.db.settings);
+  const users = useAppStore((s) => s.db.users);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const mode = useAppStore((s) => s.mode);
+  const setDefaultCycle = useAppStore((s) => s.setDefaultCycle);
+  const addUser = useAppStore((s) => s.addUser);
+  const removeUser = useAppStore((s) => s.removeUser);
+  const changePassword = useAppStore((s) => s.changePassword);
+
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<Role>('sales');
+  const [newPassword, setNewPassword] = useState('');
+  const [pwModal, setPwModal] = useState<{ user: User; self: boolean } | null>(null);
+  const [pwValue, setPwValue] = useState('');
+
+  const isAdmin = currentUser?.role === 'admin';
+  const isServer = mode === 'server';
+
+  const cycleRows = STAGE_ORDER.map((key) => ({ key, label: STAGE_LABELS[key], days: settings.defaultCycles[key] }));
+  const cycleCols: ColumnsType<(typeof cycleRows)[number]> = [
+    { title: '阶段', dataIndex: 'label', width: 160 },
+    {
+      title: '默认周期(天)',
+      width: 160,
+      render: (_, r) => (
+        <InputNumber
+          size="small"
+          min={1}
+          value={r.days}
+          onChange={(v) => v != null && void setDefaultCycle(r.key as StageKey, v)}
+        />
+      ),
+    },
+  ];
+
+  const userCols: ColumnsType<User> = [
+    { title: '用户名', dataIndex: 'name', width: 140 },
+    { title: '角色', dataIndex: 'role', width: 120, render: (v: Role) => <Tag>{ROLE_LABELS[v]}</Tag> },
+    {
+      title: '操作',
+      width: 180,
+      render: (_, u) => (
+        <Space size="small">
+          {isServer && (isAdmin || u.id === currentUser?.id) && (
+            <Typography.Link
+              onClick={() => {
+                setPwValue('');
+                setPwModal({ user: u, self: u.id === currentUser?.id });
+              }}
+            >
+              {u.id === currentUser?.id ? '改密码' : '重置密码'}
+            </Typography.Link>
+          )}
+          <Popconfirm
+            title={`确认删除用户 ${u.name}?`}
+            disabled={!isAdmin}
+            onConfirm={async () => {
+              const err = await removeUser(u.id);
+              if (err) message.error(err);
+            }}
+          >
+            <Typography.Link type="danger" disabled={!isAdmin}>
+              删除
+            </Typography.Link>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  const doAddUser = async () => {
+    if (isServer && newPassword.length < 4) {
+      message.error('请为新用户设置至少 4 位密码');
+      return;
+    }
+    const err = await addUser(name, role, isServer ? newPassword : undefined);
+    if (err) message.error(err);
+    else {
+      message.success('已添加');
+      setName('');
+      setNewPassword('');
+    }
+  };
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Card size="small" title="阶段默认周期(仅影响之后新建的订单;已有订单在订单详情内单独调整)">
+        <Table size="small" rowKey="key" columns={cycleCols} dataSource={cycleRows} pagination={false} style={{ maxWidth: 420 }} />
+      </Card>
+      <Card size="small" title={`用户管理(仅管理员可增删${isServer ? ';服务器模式需设密码' : ''})`}>
+        <Space style={{ marginBottom: 10 }} wrap>
+          <Input placeholder="用户名" style={{ width: 140 }} value={name} onChange={(e) => setName(e.target.value)} disabled={!isAdmin} />
+          <Select
+            style={{ width: 130 }}
+            value={role}
+            onChange={setRole}
+            disabled={!isAdmin}
+            options={Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))}
+          />
+          {isServer && (
+            <Input.Password
+              placeholder="初始密码(≥4位)"
+              style={{ width: 150 }}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={!isAdmin}
+            />
+          )}
+          <Button type="primary" disabled={!isAdmin} onClick={doAddUser}>
+            添加用户
+          </Button>
+        </Space>
+        <Table size="small" rowKey="id" columns={userCols} dataSource={users} pagination={false} style={{ maxWidth: 560 }} />
+      </Card>
+
+      <Modal
+        open={!!pwModal}
+        title={pwModal?.self ? '修改我的密码' : `重置 ${pwModal?.user.name} 的密码`}
+        onCancel={() => setPwModal(null)}
+        onOk={async () => {
+          if (pwValue.length < 4) {
+            message.error('密码至少 4 位');
+            return;
+          }
+          const err = await changePassword(pwModal!.user.id, pwValue);
+          if (err) message.error(err);
+          else {
+            message.success('密码已更新');
+            setPwModal(null);
+          }
+        }}
+      >
+        <Input.Password placeholder="新密码(≥4位)" value={pwValue} onChange={(e) => setPwValue(e.target.value)} />
+      </Modal>
+    </Space>
+  );
+}
