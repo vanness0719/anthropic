@@ -6,6 +6,8 @@ export interface User {
   id: string;
   name: string;
   role: Role;
+  /** bcrypt 密码哈希,仅服务器模式使用,永不下发前端 */
+  passwordHash?: string;
 }
 
 /** 生产/交付阶段(固定顺序见 constants/stages.ts,每单可启用/停用) */

@@ -1,8 +1,10 @@
 // localStorage 持久化与 JSON 导出/导入。后续接后端时替换本文件与 appStore 的读写即可。
 import type { Db } from '../types';
+import { SCHEMA_VERSION } from '../constants/schema';
+export { uid } from '../utils/id';
+export { SCHEMA_VERSION };
 
 const KEY = 'p3-db';
-export const SCHEMA_VERSION = 1;
 
 export function loadDb(): Db | null {
   try {
@@ -35,8 +37,4 @@ export async function readDbFile(file: File): Promise<Db> {
     throw new Error('文件格式不正确,不是 P3 导出的数据文件');
   }
   return db;
-}
-
-export function uid(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }

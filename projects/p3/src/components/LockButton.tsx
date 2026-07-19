@@ -4,12 +4,12 @@ import type { LockInfo } from '../types';
 
 interface Props {
   lock: LockInfo | null;
-  onToggle: () => string | undefined;
+  onToggle: () => Promise<string | undefined> | string | undefined;
 }
 
 export default function LockButton({ lock, onToggle }: Props) {
-  const handle = () => {
-    const err = onToggle();
+  const handle = async () => {
+    const err = await onToggle();
     if (err) message.error(err);
   };
   if (lock) {

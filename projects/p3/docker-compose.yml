@@ -1,0 +1,11 @@
+services:
+  p3:
+    build: .
+    container_name: p3-app
+    ports:
+      - "8080:3000" # 浏览器访问 http://<主机>:8080
+    volumes:
+      - ./p3-data:/data # 数据持久化到宿主机目录(SQLite 化前为 JSON 文件)
+    environment:
+      - P3_DEFAULT_PASSWORD=p3admin # 演示账号首登口令,建议改掉
+    restart: unless-stopped

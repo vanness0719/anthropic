@@ -27,8 +27,8 @@ export default function StageTable({ order }: { order: Order }) {
   const updateStage = useAppStore((s) => s.updateStage);
   const toggleLock = useAppStore((s) => s.toggleLock);
 
-  const upd = (key: StageKey, patch: Partial<StageData>) => {
-    const err = updateStage(order.id, key, patch);
+  const upd = async (key: StageKey, patch: Partial<StageData>) => {
+    const err = await updateStage(order.id, key, patch);
     if (err) message.error(err);
   };
 

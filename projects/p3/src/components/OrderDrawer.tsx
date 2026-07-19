@@ -73,16 +73,16 @@ export default function OrderDrawer({ openKey, onClose, onCreated }: Props) {
   const updateSales = useAppStore((s) => s.updateSales);
   const toggleLock = useAppStore((s) => s.toggleLock);
 
-  const onFinish = (v: FormVals) => {
+  const onFinish = async (v: FormVals) => {
     if (isNew) {
-      const res = createOrder(toInput(v));
+      const res = await createOrder(toInput(v));
       if (res.error) message.error(res.error);
       else {
         message.success('订单已创建,可继续编辑生产阶段');
         onCreated(res.id!);
       }
     } else if (order) {
-      const err = updateSales(order.id, toInput(v));
+      const err = await updateSales(order.id, toInput(v));
       if (err) message.error(err);
       else message.success('销售信息已保存');
     }

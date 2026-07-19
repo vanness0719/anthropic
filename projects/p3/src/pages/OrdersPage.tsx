@@ -115,8 +115,8 @@ export default function OrdersPage() {
           <Typography.Link onClick={() => setDrawerKey(o.id)}>详情</Typography.Link>
           <Popconfirm
             title="确认删除该订单?"
-            onConfirm={() => {
-              const err = deleteOrder(o.id);
+            onConfirm={async () => {
+              const err = await deleteOrder(o.id);
               if (err) message.error(err);
               else message.success('已删除');
             }}

@@ -22,6 +22,7 @@ const MENU_ITEMS = [
 export default function App() {
   const currentUser = useAppStore((s) => s.currentUser);
   const db = useAppStore((s) => s.db);
+  const mode = useAppStore((s) => s.mode);
   const importDb = useAppStore((s) => s.importDb);
   const logout = useAppStore((s) => s.logout);
   const [page, setPage] = useState('orders');
@@ -40,30 +41,37 @@ export default function App() {
           background: '#1f2a3d',
         }}
       >
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>P3 · 销售-生产-交付协同跟踪</span>
+        <Space>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>P3 · 销售-生产-交付协同跟踪</span>
+          <Tag color={mode === 'server' ? 'green' : 'gold'} style={{ marginInlineEnd: 0 }}>
+            {mode === 'server' ? '多人在线' : '单机'}
+          </Tag>
+        </Space>
         <Space>
           <Button size="small" onClick={() => exportDb(db)}>
             导出数据
           </Button>
-          <Upload
-            accept=".json"
-            showUploadList={false}
-            beforeUpload={(f) => {
-              readDbFile(f)
-                .then((d) => {
-                  importDb(d);
-                  message.success('导入成功');
-                })
-                .catch((e: Error) => message.error(e.message || '导入失败'));
-              return false;
-            }}
-          >
-            <Button size="small">导入数据</Button>
-          </Upload>
+          {mode === 'local' && (
+            <Upload
+              accept=".json"
+              showUploadList={false}
+              beforeUpload={(f) => {
+                readDbFile(f)
+                  .then((d) => {
+                    importDb(d);
+                    message.success('导入成功');
+                  })
+                  .catch((e: Error) => message.error(e.message || '导入失败'));
+                return false;
+              }}
+            >
+              <Button size="small">导入数据</Button>
+            </Upload>
+          )}
           <Tag color="blue" style={{ marginInlineEnd: 0 }}>
             {currentUser.name} · {ROLE_LABELS[currentUser.role]}
           </Tag>
-          <Button size="small" onClick={logout}>
+          <Button size="small" onClick={() => void logout()}>
             退出
           </Button>
         </Space>

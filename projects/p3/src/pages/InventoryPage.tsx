@@ -94,8 +94,8 @@ export default function InventoryPage() {
           <Input placeholder="备注" style={{ width: 200 }} value={remark} onChange={(e) => setRemark(e.target.value)} />
           <Button
             type="primary"
-            onClick={() => {
-              const err = addMove({ productModel: model, type, qty: qty ?? 0, remark: remark || undefined });
+            onClick={async () => {
+              const err = await addMove({ productModel: model, type, qty: qty ?? 0, remark: remark || undefined });
               if (err) message.error(err);
               else {
                 message.success('已记录');

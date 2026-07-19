@@ -2,7 +2,8 @@
 import dayjs from 'dayjs';
 import { DEFAULT_CYCLES, STAGE_ORDER } from '../constants/stages';
 import { recalcSchedule } from '../utils/schedule';
-import { SCHEMA_VERSION, uid } from './persist';
+import { SCHEMA_VERSION } from '../constants/schema';
+import { uid } from '../utils/id';
 import type { Db, Order, SalesInput, StageData, StageKey } from '../types';
 
 const FMT = 'YYYY-MM-DD';
